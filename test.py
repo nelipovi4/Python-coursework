@@ -1,5 +1,7 @@
 from flet import *
 import sqlite3
+import calendar
+import datetime
 
 
 class Main:
@@ -57,7 +59,7 @@ class Main:
                     if i[0] == 1:
                         self.page.appbar = AppBar(
                             leading_width=20,
-                            title=Text("БНТУ | BNTU"),
+                            title=Text(f"БНТУ | BNTU   {i[3]}"),
                             bgcolor=colors.SURFACE_VARIANT,
                             actions=[
                                 IconButton(icons.SETTINGS, on_click=lambda event: settings(i[0])),
@@ -75,7 +77,7 @@ class Main:
                     else:
                         self.page.appbar = AppBar(
                             leading_width=20,
-                            title=Text("БНТУ | BNTU"),
+                            title=Text(f"БНТУ | BNTU   {i[3]}"),
                             bgcolor=colors.SURFACE_VARIANT,
                             actions=[
                                 IconButton(icons.ACCOUNT_CIRCLE_OUTLINED, on_click=lambda event: avatar(i[3], i[0])),
@@ -174,7 +176,8 @@ class Card:
         self.page.vertical_alignment = MainAxisAlignment.CENTER
         list_motorcade = []
         self.lv = ListView(expand=1, spacing=10, padding=20)
-        self.table_lv = ListView(expand=1, spacing=10, padding=15, visible=False, width=1500)
+        self.table_lv = ListView(expand=1, spacing=10, padding=15, visible=False, width=1200)
+        week_list = ['Имя', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
 # кнопка добавление
         def fab_pressed(e):
@@ -182,7 +185,7 @@ class Card:
 
         self.floating_action_button = FloatingActionButton(icon=icons.ADD, on_click=fab_pressed,
                                                            bgcolor=colors.LIME_300)
-        page.add(self.floating_action_button)
+        self.page.add(self.floating_action_button)
 
 # Видимость областей
         def on_segment_change(e):
@@ -190,14 +193,17 @@ class Card:
                 self.lv.visible = True
                 self.table_lv.visible = False
                 self.floating_action_button.visible = True
+                self.table2.visible = False
             elif e.control.selected_index == 1:  # Table
                 self.lv.visible = False
                 self.table_lv.visible = True
                 self.floating_action_button.visible = False
+                self.table2.visible = True
             else:  # Send
                 self.lv.visible = False
                 self.table_lv.visible = False
                 self.floating_action_button.visible = False
+                self.table2.visible = False
             self.page.update()
 
 # стрелка назад
@@ -259,26 +265,46 @@ class Card:
                 border_radius=border_radius.all(15)
             )
             self.lv.controls.append(card_container)
-
         self.page.add(self.lv)
+
+        columns2 = [DataColumn(Text(f"Column {i + 1}", color="black")) for i in range(6)]
+
+        self.table2 = DataTable(
+            width=880,
+            bgcolor="white",
+            border=border.all(2, "#00FF7F"),
+            border_radius=5,
+            vertical_lines=BorderSide(2, "black"),
+            columns=columns2,
+            visible=False
+        )
+        self.page.add(Container(
+            content=self.table2,
+            padding=padding.only(left=290)
+        ))
+
         self.page.add(self.table_lv)
 
+
 # таблица
-        columns = [DataColumn(Text(f"Column {i + 1}", color="black")) for i in range(7)]
+        columns = [DataColumn(Text(f"{week_list[i]}", color="black")) for i in range(7)]
 
         rows = [
             DataRow([
-                DataCell(Container(
-                    content=Text(f"{list_name[i]}" if j == 0 else "", size=25, color="black"),
-                    width=200 if j == 0 else None
-                ))
+                DataCell(
+                    Container(
+                        content=Text(f"{list_name[i]}" if j == 0 else "     Н", size=25, color="black"),
+                        width=200 if j == 0 else None,
+                        on_click=lambda e, n=j, a=i: print(f"Столбец {n + 1}, {list_name[a]}") if n != 0 else None,
+                    )
+                )
                 for j in range(7)
             ])
             for i in range(len(list_name))
         ]
 
         table = DataTable(
-            width=1500,
+            width=800,
             bgcolor="white",
             border=border.all(2, "#00FF7F"),
             border_radius=5,
@@ -288,6 +314,23 @@ class Card:
         )
 
         self.table_lv.controls.append(table)
+
+# кнопки и месяц
+        but = IconButton(icons.ARROW_CIRCLE_LEFT, icon_size=35)
+        but_2 = IconButton(icons.ARROW_CIRCLE_RIGHT, icon_size=35)
+        today = datetime.date.today()  # Получаем текущую дату
+        month_name = calendar.month_name[today.month]  # Получаем имя месяца
+        t = Text(f'{month_name}', size=40)
+        self.page.add(
+            Row(
+                [
+                    but,
+                    t,
+                    but_2
+                ],
+                alignment=MainAxisAlignment.CENTER
+            )
+        )
 
 
 class Admin:
