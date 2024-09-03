@@ -91,7 +91,7 @@ class Main:
                             ],
                         )
                         self.page.update()
-                        Numbers(self.page, self.cursor_db, i[0])
+                        Numbers(self.page, self.cursor_db, i[0], db)
 
 # виджеты
         user_login = TextField(value="", width=300, text_align=TextAlign.LEFT, label="Логин", height=100,
@@ -130,7 +130,7 @@ class Main:
 
 
 class Numbers:
-    def __init__(self, page, cursor_db, id):
+    def __init__(self, page, cursor_db, id, db):
         self.page = page
         self.cursor_db = cursor_db
         page.vertical_alignment = MainAxisAlignment.CENTER
@@ -148,7 +148,7 @@ class Numbers:
             def next_class(e, value=i):
                 page.clean()
                 page.update()
-                Card(value, self.page, self.cursor_db, id)
+                Card(value, self.page, self.cursor_db, id, db)
 
             page.add(
                 Row(
@@ -171,17 +171,21 @@ class Numbers:
 
 
 class Card:
-    def __init__(self, value, page, cursor_db, id):
+    def __init__(self, value, page, cursor_db, id, db):
         self.page = page
         self.page.vertical_alignment = MainAxisAlignment.CENTER
         list_motorcade = []
-        self.lv = ListView(expand=1, spacing=10, padding=20)
+        self.lv = ListView(expand=1, spacing=10, padding=20,width=1000)
         self.table_lv = ListView(expand=1, spacing=10, padding=15, visible=False, width=1200)
-        week_list = ['Имя', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
+        week_list = ['Имя', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
+        today = datetime.date.today()
+        #print(f'{today.day - 1}/{today.month}/{today.year}')
+        date_list = ['2/9/2024', '3/9/2024', '4/9/2024', '5/9/2024', '6/9/2024', '7/9/2024']
 
 # кнопка добавление
         def fab_pressed(e):
-            print(1)
+            self.page.clean()
+            AddStudent(self.page, cursor_db, db, value, 1, id)
 
         self.floating_action_button = FloatingActionButton(icon=icons.ADD, on_click=fab_pressed,
                                                            bgcolor=colors.LIME_300)
@@ -194,22 +198,25 @@ class Card:
                 self.table_lv.visible = False
                 self.floating_action_button.visible = True
                 self.table2.visible = False
+                self.but_calendar.visible = False
             elif e.control.selected_index == 1:  # Table
                 self.lv.visible = False
                 self.table_lv.visible = True
                 self.floating_action_button.visible = False
                 self.table2.visible = True
+                self.but_calendar.visible = True
             else:  # Send
                 self.lv.visible = False
                 self.table_lv.visible = False
                 self.floating_action_button.visible = False
                 self.table2.visible = False
+                self.but_calendar.visible = False
             self.page.update()
 
 # стрелка назад
         def click_arrow(e):
             self.page.clean()
-            Numbers(self.page, cursor_db, id)
+            Numbers(self.page, cursor_db, id, db)
             self.page.update()
 
 # CupertinoSlidingSegmentedButton
@@ -240,6 +247,10 @@ class Card:
         list_name = [x[0] for x in list_motorcade]
         len_list = len(list_name)
 
+        def transition_class_edit(name):
+            self.page.clean()
+            EditStudent(self.page, cursor_db, name, db, value, 1)
+            self.page.update()
 # Контейнеры
         for i in range(len_list):
             card_container = Container(
@@ -252,6 +263,8 @@ class Card:
                                 icon=icons.MORE_VERT,
                                 items=[
                                     PopupMenuItem(text="Аккаунт", on_click=lambda _, name=list_name[i]: print(name)),
+                                    PopupMenuItem(text="Изменить",
+                                                  on_click=lambda _, name=list_name[i]: transition_class_edit(name)),
                                     PopupMenuItem(text="Удалить"),
                                 ],
                                 icon_size=35
@@ -267,10 +280,15 @@ class Card:
             self.lv.controls.append(card_container)
         self.page.add(self.lv)
 
-        columns2 = [DataColumn(Text(f"Column {i + 1}", color="black")) for i in range(6)]
+        def transition_calendar(e):
+            print(1)
+
+        self.but_calendar = ElevatedButton(text="КАЛЕНДАРЬ", width=250, height=50, bgcolor='#B0E0E6', color='black',
+                                           on_click=transition_calendar, visible=False)
+        columns2 = [DataColumn(Text(f"{date_list[i]}", color="black", size=18)) for i in range(6)]
 
         self.table2 = DataTable(
-            width=880,
+            width=882,
             bgcolor="white",
             border=border.all(2, "#00FF7F"),
             border_radius=5,
@@ -278,10 +296,20 @@ class Card:
             columns=columns2,
             visible=False
         )
-        self.page.add(Container(
+        con = Container(
             content=self.table2,
-            padding=padding.only(left=290)
-        ))
+            padding=padding.only(left=38)
+        )
+
+        self.page.add(
+            Row(
+                [
+                    self.but_calendar,
+                    con
+                ],
+                alignment=MainAxisAlignment.CENTER
+            )
+        )
 
         self.page.add(self.table_lv)
 
@@ -314,23 +342,6 @@ class Card:
         )
 
         self.table_lv.controls.append(table)
-
-# кнопки и месяц
-        but = IconButton(icons.ARROW_CIRCLE_LEFT, icon_size=35)
-        but_2 = IconButton(icons.ARROW_CIRCLE_RIGHT, icon_size=35)
-        today = datetime.date.today()  # Получаем текущую дату
-        month_name = calendar.month_name[today.month]  # Получаем имя месяца
-        t = Text(f'{month_name}', size=40)
-        self.page.add(
-            Row(
-                [
-                    but,
-                    t,
-                    but_2
-                ],
-                alignment=MainAxisAlignment.CENTER
-            )
-        )
 
 
 class Admin:
@@ -501,7 +512,7 @@ class AdminGroup:
 # кнопка добавление
         def fab_pressed_students(e):
             self.page.clean()
-            AddStudent(self.page, cursor_db, db, number)
+            AddStudent(self.page, cursor_db, db, number, 0, 0)
             self.page.update()
 
         self.floating_action_button_students = FloatingActionButton(icon=icons.ADD, on_click=fab_pressed_students,
@@ -533,7 +544,7 @@ class AdminGroup:
 # Контейнеры
         def transition_class_edit(name):
             self.page.clean()
-            EditStudent(self.page, cursor_db, name, db, number)
+            EditStudent(self.page, cursor_db, name, db, number, 0)
             self.page.update()
 
         for i in range(len_list):
@@ -1065,7 +1076,7 @@ class AddTeachers:
 
 
 class AddStudent:
-    def __init__(self, page, cursor_db, db, group):
+    def __init__(self, page, cursor_db, db, group, status, id):
         self.page = page
         self.cursor_db = cursor_db
         self.db = db
@@ -1073,7 +1084,10 @@ class AddStudent:
 # кнопка назад
         def click_end(e):
             self.page.clean()
-            Admin(self.page, cursor_db, db)
+            if status == 0:
+                Admin(self.page, cursor_db, db)
+            else:
+                Card(group, self.page, cursor_db, id, db)
             self.page.update()
 
 # кнопка сохранить
@@ -1232,15 +1246,17 @@ class EditGroup:
 
 
 class EditStudent:
-    def __init__(self, page, cursor_db, name, db, number):
+    def __init__(self, page, cursor_db, name, db, number, status):
         self.page = page
         self.cursor_db = cursor_db
         self.db = db
-
 # кнопка назад
         def click_end(e):
             self.page.clean()
-            Admin(self.page, cursor_db, db)
+            if status == 0:
+                AdminGroup(self.page, cursor_db, number, db)
+            else:
+                Card(number, self.page, cursor_db, id, db)
             self.page.update()
 
 # кнопка сохранить
