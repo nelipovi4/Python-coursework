@@ -32,7 +32,5 @@ for i in cursor_db:
 	print(i)
 
 
-
-
 db.commit()
 db.close()
