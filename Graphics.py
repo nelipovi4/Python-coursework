@@ -2,15 +2,17 @@ from flet import *
 import sqlite3
 import calendar
 import datetime
+from Admins import Admins
+from Databases import Databases
+from Teachers import Teachers
 
 
 class Main:
-    def __init__(self, page, db):
-        self.page = page
-        self.db = db
+    def __init__(self, pageM):
+        self.page = pageM
+        self.db = Databases()
         self.page.title = "BNTU"
         self.page.vertical_alignment = MainAxisAlignment.CENTER
-        self.cursor_db = self.db.cursor()
 
         # виджеты
         self.user_login = TextField(value="", width=300, text_align=TextAlign.LEFT, label="Логин", height=100,
@@ -71,25 +73,23 @@ class Main:
 # аватар
     def avatar(self, name, id):
         self.page.clean()
-        AccountTeachers(self.page, self.cursor_db, name, id, self.db)
+        AccountTeachers(self.page, name, id, self.db)
         self.page.update()
 
 # выход
     def logout(self):
         self.page.clean()
-        Main(self.page, self.db)
+        Main(self.page)
         self.page.update()
 
 # настройки
     def settings(self, id):
         self.page.clean()
-        SettingsAdmin(self.page, self.cursor_db, id, self.db)
-        self.page.update()
+        SettingsAdmin(self.page, self.db, id)
 
 # проверка на вход
     def check_users(self, e):
-        self.cursor_db.execute("SELECT rowid, login, password, name FROM teachers")
-        for i in self.cursor_db:
+        for i in self.db.get_info_select_from("rowid, login, password, name", "teachers"):
             if (f'{self.user_login.value}', f'{self.user_password.value}') == (i[1], i[2]):
                 self.page.clean()
                 if i[0] == 1:
@@ -109,7 +109,7 @@ class Main:
                         ],
                     )
                     self.page.update()
-                    Admin(self.page, self.cursor_db, self.db)
+                    Admin(self.page, self.db)
                 else:
                     self.page.appbar = AppBar(
                         leading_width=20,
@@ -127,35 +127,26 @@ class Main:
                         ],
                     )
                     self.page.update()
-                    Numbers(self.page, self.cursor_db, i[0], self.db)
+                    Numbers(self.page, i[0], self.db)
 
 
 class Numbers:
-    def __init__(self, page, cursor_db, id, db):
-        self.page = page
+    def __init__(self, pageN, id, db):
+        self.page = pageN
         self.id = id
         self.db = db
-        self.cursor_db = cursor_db
-        page.vertical_alignment = MainAxisAlignment.CENTER
-        page.horizontal_alignment = CrossAxisAlignment.CENTER
-        self.list_num = ''
-        self.create_list()
+        self.teacher = Teachers()
+        self.page.vertical_alignment = MainAxisAlignment.CENTER
+        self.page.horizontal_alignment = CrossAxisAlignment.CENTER
         self.click_cont()
-
-# делаем список из номеров групп
-    def create_list(self):
-        self.cursor_db.execute(f"SELECT num_group FROM teachers WHERE rowid={self.id}")
-        for i in self.cursor_db:
-            num_group_str = i[0]
-            self.list_num = num_group_str.replace(',', ' ').split()
 
 # контейнеры и нажатие на них
     def click_cont(self):
-        for i in self.list_num:
+        list_num = self.teacher.get_list_group(self.db.get_info_select_from_where("num_group", "teachers",
+                                                                                  "rowid", self.id))
+        for i in list_num:
             def next_class(e, value=i):
-                self.page.clean()
-                self.page.update()
-                Card(value, self.page, self.cursor_db, self.id, self.db)
+                Card(value, self.page, self.id, self.db)
 
             self.page.add(
                 Row(
@@ -177,13 +168,14 @@ class Numbers:
             )
 
 
-class Card:
-    def __init__(self, value, page, cursor_db, id, db):
-        self.page = page
+class Card(Numbers):
+    def __init__(self, value, pageN, id, db):
+        super().__init__(pageN, id, db)
+        self.page.clean()
+        self.page.update()
         self.value = value
-        self.cursor_db = cursor_db
         self.id = id
-        self.db = db
+
         self.page.vertical_alignment = MainAxisAlignment.CENTER
         self.list_motorcade = []
         self.lv = ListView(expand=1, spacing=10, padding=20,width=1000)
@@ -217,11 +209,7 @@ class Card:
             )
         )
 # Добавляем всё в список, где есть кортежи, а затем убираем кортежи
-        self.cursor_db.execute(f"SELECT name FROM group{self.value}")
-        for i in self.cursor_db:
-            self.list_motorcade.append(i)
-
-        self.list_name = [x[0] for x in self.list_motorcade]
+        self.list_name = self.teacher.get_list_name(self.db.get_info_select_from("name",f"group{self.value}"))
         self.len_list = len(self.list_name)
         # Контейнеры
         for i in range(self.len_list):
@@ -311,10 +299,11 @@ class Card:
 
         self.table_lv.controls.append(table)
         self.page.add(self.table_lv)
+
 # кнопка добавление
     def fab_pressed(self, e):
         self.page.clean()
-        AddStudent(self.page, self.cursor_db, self.db, self.value, 1, id)
+        AddStudent(self.page, self.db, self.value, self.id)
 
 # Видимость областей
     def on_segment_change(self, e):
@@ -341,28 +330,25 @@ class Card:
 # стрелка назад
     def click_arrow(self, e):
         self.page.clean()
-        Numbers(self.page, self.cursor_db, self.id, self.db)
-        self.page.update()
+        Numbers(self.page, self.db, self.id)
 
     def transition_class_edit(self, name):
         self.page.clean()
-        EditStudent(self.page, self.cursor_db, name, self.db, self.value, 1)
-        self.page.update()
+        EditStudent(self.page, self.db, name, self.value, 0)
 
     def transition_calendar(self, e):
         print(1)
 
 
 class Admin:
-    def __init__(self, page, cursor_db, db):
-        self.page = page
-        self.cursor_db = cursor_db
-        self.db = db
+    def __init__(self, pageA, dbA):
+        self.page = pageA
+        self.admin = Admins()
+        self.db = dbA
         self.page.horizontal_alignment = CrossAxisAlignment.CENTER
         self.page.vertical_alignment = MainAxisAlignment.CENTER
         self.teachers_lv = ListView(expand=1, spacing=10, padding=20, width=1000)
         self.students_lv = ListView(expand=1, spacing=10, padding=20, visible=False, width=500)
-        self.list_motorcade = []
 
 # кнопки добавление
         self.floating_action_button_teachers = FloatingActionButton(icon=icons.ADD, on_click=self.fab_pressed_teachers,
@@ -390,12 +376,7 @@ class Admin:
         )
 
 # преподаватели card
-        self.cursor_db.execute("SELECT name FROM teachers")
-
-        for i in self.cursor_db:
-            self.list_motorcade.append(i)
-
-        self.list_teachers = [x[0] for x in self.list_motorcade]
+        self.list_teachers = self.admin.get_list(self.db.get_info_select_from("name", "teachers"))
         self.len_list_teachers = len(self.list_teachers)
 
         for i in range(self.len_list_teachers - 1):
@@ -431,12 +412,7 @@ class Admin:
             self.page.add(self.students_lv)
 
 # ученики card
-        self.cursor_db.execute("SELECT num_group FROM group_db")
-
-        self.list_num_group = []
-
-        for i in self.cursor_db:
-            self.list_num_group.extend(i)
+        self.list_num_group = self.admin.get_list(self.db.get_info_select_from("num_group", "group_db"))
 
         len_list_num_group = len(self.list_num_group)
         for i in range(len_list_num_group):
@@ -469,12 +445,11 @@ class Admin:
 
     def fab_pressed_students(self, e):
         self.page.clean()
-        AddGroup(self.page, self.cursor_db, self.db)
-        self.page.update()
+        AddGroup(self.page, self.db)
 
     def fab_pressed_teachers(self, e):
         self.page.clean()
-        AddTeachers(self.page, self.cursor_db, self.db)
+        AddTeachers(self.page, self.db)
         self.page.update()
 
     def on_segment_change(self, e):
@@ -492,36 +467,33 @@ class Admin:
 
     def transition_account(self, name):
         self.page.clean()
-        AccountTeachers(self.page, self.cursor_db, name, 1, self.db)
-        self.page.update()
+        AccountTeachers(self.page, name, 1, self.db)
 
     def transition_edit(self, name):
         self.page.clean()
-        EditTeachers(self.page, self.cursor_db, name, self.db)
+        EditTeachers(self.page, self.db, name)
         self.page.update()
 
     def transition_list(self, number):
         self.page.clean()
-        AdminGroup(self.page, self.cursor_db, number, self.db)
-        self.page.update()
+        AdminGroup(self.page, self.db, number)
 
     def transition_edit_group(self, number):
         self.page.clean()
-        EditGroup(self.page, self.cursor_db, number, self.db)
+        EditGroup(self.page, self.db, number)
         self.page.update()
 
 
-class AdminGroup:
-    def __init__(self, page, cursor_db, number, db):
-        self.page = page
-        self.cursor_db = cursor_db
+class AdminGroup(Admin):
+    def __init__(self, pageA, dbA, number):
+        super().__init__(pageA, dbA)
+        self.page.clean()
+        self.page.update()
         self.number = number
-        self.db = db
         self.page.horizontal_alignment = CrossAxisAlignment.CENTER
         self.page.vertical_alignment = MainAxisAlignment.CENTER
         self.lv = ListView(expand=1, spacing=10, padding=20, width=1000)
         self.list_motorcade = []
-
 # кнопка добавление
         self.floating_action_button_students = FloatingActionButton(icon=icons.ADD, on_click=self.fab_pressed_students,
                                                                     bgcolor=colors.LIME_300)
@@ -536,15 +508,11 @@ class AdminGroup:
                 alignment=MainAxisAlignment.START,
             )
         )
-        self.cursor_db.execute(f"SELECT name FROM group{self.number}")
-        for i in self.cursor_db:
-            self.list_motorcade.append(i)
 
 # контейнер
-        self.list_name = [x[0] for x in self.list_motorcade]
-        self.len_list = len(self.list_name)
-
-        for i in range(self.len_list):
+        self.list_name = self.admin.get_list(self.db.get_info_select_from("name", f"group{self.number}"))
+        len_list_name = len(self.list_name)
+        for i in range(len_list_name):
             card_container = Container(
                 content=Column(
                     [
@@ -575,27 +543,27 @@ class AdminGroup:
 
     def fab_pressed_students(self, e):
         self.page.clean()
-        AddStudent(self.page, self.cursor_db, self.db, self.number, 0, 0)
+        AddStudent(self.page, self.db, self.number, 1,)
         self.page.update()
 
     def click_arrow(self, e):
         self.page.clean()
-        Admin(self.page, self.cursor_db, self.db)
+        Admin(self.page, self.db)
         self.page.update()
 
     def transition_class_edit(self, name):
         self.page.clean()
-        EditStudent(self.page, self.cursor_db, name, self.db, self.number, 0)
+        EditStudent(self.page, self.db, name, self.number, 1)
         self.page.update()
 
 
-class AccountTeachers:
-    def __init__(self, page, cursor_db, name, id, db):
-        self.page = page
+class AccountTeachers(Admin):
+    def __init__(self, pageA, name, id, dbA):
+        super().__init__(pageA, dbA)
+        self.page.clean()
+        self.page.update()
         self.id = id
-        self.cursor_db = cursor_db
         self.name = name
-        self.db = db
         self.page.horizontal_alignment = CrossAxisAlignment.CENTER
         self.page.vertical_alignment = MainAxisAlignment.START
 
@@ -617,32 +585,16 @@ class AccountTeachers:
         )
 
 # Номера в список
-        self.cursor_db.execute(f"SELECT num_group FROM teachers WHERE name=='{name}'")
-
-        self.list_motorcade = []
-        self.cl_list_number = ''
-        for i in self.cursor_db:
-            self.list_motorcade.extend(map(str, i))  # делаем тип str
-
-        for i in self.list_motorcade:
-            self.cl_list_number = i
-
+        self.cl_list_number = self.admin.get_list(self.db.get_info_select_from_where("num_group", "teachers",
+                                                                                     "name", name))
 # Предметы в список
-        self.cursor_db.execute(f"SELECT items FROM teachers WHERE name=='{name}'")
-
-        self.list_motorcade = []
-        self.cl_list_item = ''
-        for i in self.cursor_db:
-            self.list_motorcade.extend(map(str, i))  # делаем тип str
-
-        for i in self.list_motorcade:
-            self.cl_list_item = i
-
+        self.cl_list_item = self.admin.get_list(self.db.get_info_select_from_where("items", "teachers",
+                                                                                   "name", name))
 # ExpansionTile
         self.page.add(
             ExpansionTile(
                 title=Text("Предметы", size=40, color="black"),
-                controls=[ListTile(title=Text(f"{self.cl_list_item}", color='black', size=30))],
+                controls=[ListTile(title=Text(f"{self.cl_list_item[0]}", color='black', size=30))],
                 width=700,
                 bgcolor="#AFEEEE",
                 collapsed_bgcolor="#AED6F1",
@@ -650,7 +602,7 @@ class AccountTeachers:
             ),
             ExpansionTile(
                 title=Text("Группы", size=40, color="black"),
-                controls=[ListTile(title=Text(f"{self.cl_list_number}", color='black', size=30))],
+                controls=[ListTile(title=Text(f"{self.cl_list_number[0]}", color='black', size=30))],
                 width=700,
                 bgcolor="#AFEEEE",
                 collapsed_bgcolor="#AED6F1",
@@ -660,29 +612,24 @@ class AccountTeachers:
     def click_arrow(self, e):
         self.page.clean()
         if self.id == 1:
-            Admin(self.page, self.cursor_db, self.db)
+            Admin(self.page, self.db)
         else:
-            Numbers(self.page, self.cursor_db, self.id, self.db)
+            Numbers(self.page, self.id, self.db)
         self.page.update()
 
 
-class SettingsAdmin:
-    def __init__(self, page, cursor_db, id, db):
-        self.page = page
-        self.cursor_db = cursor_db
+class SettingsAdmin(Admin):
+    def __init__(self, pageA, dbA, id):
+        super().__init__(pageA, dbA)
+        self.page.clean()
+        self.page.update()
         self.id = id
-        self.db = db
 
-        self.cursor_db.execute(f"SELECT name, password, email FROM teachers WHERE rowid={id}")
-
-        self.name_db = ''
-        self.password = ''
-        self.email = ''
-
-        for i in self.cursor_db:
-            self.name_db = str(i[0])
-            self.password = str(i[1])
-            self.email = str(i[2])
+        list_str = self.admin.get_list(self.db.get_info_select_from_where("name, password, email",
+                                                                          "teachers", "rowid", id))
+        self.name_db = str(list_str[0])
+        self.password = str(list_str[1])
+        self.email = str(list_str[2])
 
 # виджеты
         self.t = Text("Имя и почта будут использоваться в тех.поддержке для связи с вами, для помощи", size=12)
@@ -737,7 +684,7 @@ class SettingsAdmin:
 # кнопка назад
     def click_end(self, e):
         self.page.clean()
-        Admin(self.page, self.cursor_db, self.db)
+        Admin(self.page, self.db)
         self.page.update()
 
 # кнопка сохранить
@@ -745,55 +692,50 @@ class SettingsAdmin:
         if self.text_name.value == '' or self.text_pass.value == '' or self.text_email.value == '':
             self.page.show_banner(self.bs)
         else:
-            self.cursor_db.execute(f"UPDATE teachers SET name='{self.text_name.value}', password='{self.text_pass.value}', "
-                                    f"email='{self.text_email.value}' WHERE rowid={self.id}")
+            self.db.set_info_update_nine("teachers", "name", self.text_name.value, "password", self.text_pass.value,
+                                         "email", self.text_email.value, "rowid", self.id)
             self.page.show_banner(self.dlg)
         self.page.update()
-        self.db.commit()
 
 
-class EditTeachers:
-    def __init__(self, page, cursor_db, name, db):
-        self.page = page
-        self.cursor_db = cursor_db
-        self.db = db
+class EditTeachers(Admin):
+    def __init__(self, pageA, dbA, name):
+        super().__init__(pageA, dbA)
+        self.page.clean()
+        self.page.update()
         self.name = name
         self.login = ''
         self.password = ''
         self.items = ''
         self.num_group = ''
 
-        self.cursor_db.execute("SELECT num_group FROM group_db")
+        self.list_num_group = self.admin.get_list(self.db.get_info_select_from("num_group", "group_db"))
 
-        self.list_num_group = []
-        for i in self.cursor_db:
-            self.list_num_group.extend(i)
-
-        self.cursor_db.execute(f"SELECT login, password, items, num_group, rowid FROM teachers WHERE name='{name}'")
-        for i in self.cursor_db:
-            self.login = str(i[0])
-            self.password = str(i[1])
-            self.items = str(i[2])
-            self.num_group = str(i[3])
-            self.rowid = i[4]
+        list_info = self.admin.get_list(self.db.get_info_select_from_where("login, password, items, num_group, rowid",
+                                                                  "teachers", "name", name))
+        self.login = str(list_info[0])
+        self.password = str(list_info[1])
+        self.items = str(list_info[2])
+        self.num_group = str(list_info[3])
+        self.rowid = list_info[4]
 
 # виджеты
-            self.text_name = TextField(label="Имя", value=f'{name}', width=500, text_size=30,
+        self.text_name = TextField(label="Имя", value=f'{name}', width=500, text_size=30,
                                   border_color="#28B463", border_width=2)
-            self.text_pass = TextField(label="Пароль", value=f'{self.password}', width=500, text_size=30,
+        self.text_pass = TextField(label="Пароль", value=f'{self.password}', width=500, text_size=30,
                                   password=True, can_reveal_password=True, border_color="#28B463", border_width=2)
-            self.text_login = TextField(label="Логин", value=f'{self.login}', width=500, text_size=30,
+        self.text_login = TextField(label="Логин", value=f'{self.login}', width=500, text_size=30,
                                    border_color="#28B463", border_width=2)
-            self.text_items = TextField(label="Предметы", value=f'{self.items}', width=500, text_size=30,
+        self.text_items = TextField(label="Предметы", value=f'{self.items}', width=500, text_size=30,
                                    border_color="#28B463", border_width=2)
-            self.text_num_group = TextField(label="Группы", value=f'{self.num_group}', width=500, text_size=30,
+        self.text_num_group = TextField(label="Группы", value=f'{self.num_group}', width=500, text_size=30,
                                        border_color="#28B463", border_width=2)
-            self.but_save = ElevatedButton(text="Сохранить", on_click=self.button_clicked, width=200, height=50)
-            self.but_end = ElevatedButton(text="Назад", on_click=self.click_end, width=200, height=50)
+        self.but_save = ElevatedButton(text="Сохранить", on_click=self.button_clicked, width=200, height=50)
+        self.but_end = ElevatedButton(text="Назад", on_click=self.click_end, width=200, height=50)
 
 # добавляем виджеты
-            self.page.add(
-                Column(
+        self.page.add(
+            Column(
                     [
                         self.text_name,
                         self.text_login,
@@ -815,8 +757,8 @@ class EditTeachers:
             )
 
 # уведомление
-            self.error_write_num = Text("Нельзя,чтоб были пустые поля", size=20, color="red")
-            self.bs = BottomSheet(
+        self.error_write_num = Text("Нельзя,чтоб были пустые поля", size=20, color="red")
+        self.bs = BottomSheet(
                 content=Container(
                     padding=50,
                     content=Column(
@@ -828,12 +770,12 @@ class EditTeachers:
                 ),
             )
 
-            self.dlg = AlertDialog(
+        self.dlg = AlertDialog(
                 title=Text("УСПЕШНО!", size=50, color="green"),
             )
 
-            self.error = Text('', size=20, color="red")
-            self.error = AlertDialog(
+        self.error = Text('', size=20, color="red")
+        self.error = AlertDialog(
                 title=Text("ОШИБКА", size=50, color="red"),
                 content=Column(
                     tight=True,
@@ -847,8 +789,7 @@ class EditTeachers:
 # кнопка назад
     def click_end(self, e):
         self.page.clean()
-        Admin(self.page, self.cursor_db, self.db)
-        self.page.update()
+        Admin(self.page, self.db)
 
 # кнопка сохранить
     def button_clicked(self, e):
@@ -870,26 +811,22 @@ class EditTeachers:
 
                 if kol_right == len(list_num):
                     self.page.show_banner(self.dlg)
-                    self.cursor_db.execute(
-                        f"UPDATE teachers SET name='{self.text_name.value}', password='{self.text_pass.value}', "
-                        f"login='{self.text_login.value}', items='{self.text_items.value}', "
-                        f"num_group='{self.text_num_group.value}' "
-                        f"WHERE rowid={self.rowid}")
+                    self.db.set_info_update_thirteen("teachers", "name", self.text_name.value, "password",
+                                                     self.text_pass.value, "login", self.text_login.value,
+                                                     "items", self.text_items.value, "num_group",
+                                                     self.text_num_group.value, "rowid", self.rowid)
             except:
                 self.error_write_num.value = ("ОШИБКА, в поле Группы нужно записывать через запятую и"
-                                             " с одним пробелом после ")
+                                              " с одним пробелом после")
                 self.page.show_banner(self.bs)
+            self.page.update()
 
+
+class AddGroup(Admin):
+    def __init__(self, pageA, dbA):
+        super().__init__(pageA, dbA)
+        self.page.clean()
         self.page.update()
-        self.db.commit()
-
-
-class AddGroup:
-    def __init__(self, page, cursor_db, db):
-        self.page = page
-        self.cursor_db = cursor_db
-        self.db = db
-
 # виджеты
         self.text_num_group = TextField(label="Номер группы", width=500, text_size=30,
                                    border_color="#28B463", border_width=2)
@@ -945,7 +882,7 @@ class AddGroup:
 # кнопка назад
     def click_end(self, e):
         self.page.clean()
-        Admin(self.page, self.cursor_db, self.db)
+        Admin(self.page, self.db)
         self.page.update()
 
 # кнопка сохранить
@@ -955,45 +892,38 @@ class AddGroup:
                 self.page.show_banner(self.bs)
             elif 10000000 <= int(self.text_num_group.value) <= 99999999:
                 self.page.show_banner(self.dlg)
-                self.cursor_db.execute(f"INSERT INTO group_db VALUES('{self.text_num_group.value}')")
-                self.cursor_db.execute(f"CREATE TABLE group{self.text_num_group.value}(name)")
+                self.db.insert_info_values_one("group_db", self.text_num_group.value)
+                self.db.create_table_group(self.text_num_group.value)
                 self.text_num_group.value = ''
             else:
                 self.page.show_banner(self.error)
             self.page.update()
-            self.db.commit()
         except:
             self.page.show_banner(self.error)
 
 
-class AddTeachers:
-    def __init__(self, page, cursor_db, db):
-        self.page = page
-        self.cursor_db = cursor_db
-        self.db = db
-
-        self.cursor_db.execute("SELECT num_group FROM group_db")
-
-        self.list_num_group = []
-        for i in cursor_db:
-            self.list_num_group.extend(i)
-
-            # виджеты
-            self.text_name = TextField(label="ФИО", width=500, text_size=30,
+class AddTeachers(Admin):
+    def __init__(self, pageA, dbA):
+        super().__init__(pageA, dbA)
+        self.page.clean()
+        self.page.update()
+        self.list_num_group = self.admin.get_list(self.db.get_info_select_from("num_group", "group_db"))
+# виджеты
+        self.text_name = TextField(label="ФИО", width=500, text_size=30,
                                   border_color="#28B463", border_width=2)
-            self.text_login = TextField(label="Логин", width=500, text_size=30,
+        self.text_login = TextField(label="Логин", width=500, text_size=30,
                                    border_color="#28B463", border_width=2)
-            self.text_password = TextField(label="Пароль", width=500, text_size=30,
+        self.text_password = TextField(label="Пароль", width=500, text_size=30,
                                       password=True, can_reveal_password=True, border_color="#28B463", border_width=2)
-            self.text_items = TextField(label="Предметы", width=500, text_size=30,
+        self.text_items = TextField(label="Предметы", width=500, text_size=30,
                                    border_color="#28B463", border_width=2)
-            self.text_num_group = TextField(label="Номер группы", width=500, text_size=30,
+        self.text_num_group = TextField(label="Номер группы", width=500, text_size=30,
                                        border_color="#28B463", border_width=2)
-            self.but_save = ElevatedButton(text="Добавить", on_click=self.button_clicked, width=200, height=50)
-            self.but_end = ElevatedButton(text="Назад", on_click=self.click_end, width=200, height=50)
+        self.but_save = ElevatedButton(text="Добавить", on_click=self.button_clicked, width=200, height=50)
+        self.but_end = ElevatedButton(text="Назад", on_click=self.click_end, width=200, height=50)
 
 # добавляем виджеты
-            self.page.add(
+        self.page.add(
                 Column(
                     [
                         self.text_name,
@@ -1016,8 +946,8 @@ class AddTeachers:
             )
 
 # уведомление
-            self.error_write_num = Text("Нельзя,чтоб были пустые поля", size=20, color="red")
-            self.bs = BottomSheet(
+        self.error_write_num = Text("Нельзя,чтоб были пустые поля", size=20, color="red")
+        self.bs = BottomSheet(
                 content=Container(
                     padding=50,
                     content=Column(
@@ -1029,12 +959,12 @@ class AddTeachers:
                 ),
             )
 
-            self.dlg = AlertDialog(
+        self.dlg = AlertDialog(
                 title=Text("УСПЕШНО!", size=50, color="green"),
             )
 
-            self.error_num = Text('', size=20, color="red")
-            self.error = AlertDialog(
+        self.error_num = Text('', size=20, color="red")
+        self.error = AlertDialog(
                 title=Text("ОШИБКА", size=50, color="red"),
                 content=Column(
                     tight=True,
@@ -1048,8 +978,7 @@ class AddTeachers:
 # кнопка назад
     def click_end(self, e):
         self.page.clean()
-        Admin(self.page, self.cursor_db, self.db)
-        self.page.update()
+        Admin(self.page, self.db)
 
 # кнопка сохранить
     def button_clicked(self, e):
@@ -1071,29 +1000,27 @@ class AddTeachers:
 
                 if kol_right == len(list_num):
                     self.page.show_banner(self.dlg)
-                    self.cursor_db.execute(f"INSERT INTO teachers VALUES('{self.text_name.value}', '{self.text_login.value}',"
-                                               f"'{self.text_password.value}', '{self.text_items.value}', "
-                                               f"'{self.text_num_group.value}', 'None')")
+                    self.db.insert_info_values_six("teachers", self.text_name.value, self.text_login.value,
+                                                   self.text_password.value, self.text_items.value,
+                                                   self.text_num_group.value)
                     self.text_name.value = ''
                     self.text_login.value = ''
                     self.text_password.value = ''
                     self.text_items.value = ''
                     self.text_num_group.value = ''
                     self.page.update()
-                    self.db.commit()
             except:
                 self.error_write_num.value = ("ОШИБКА, в поле Группы нужно записывать через запятую и"
-                                             " с одним пробелом после ")
+                                             " с одним пробелом после")
                 self.page.show_banner(self.bs)
 
 
-class AddStudent:
-    def __init__(self, page, cursor_db, db, group, status, id):
-        self.page = page
-        self.cursor_db = cursor_db
-        self.db = db
+class AddStudent(Admin):
+    def __init__(self, pageA, dbA, group, id):
+        super().__init__(pageA, dbA)
+        self.page.clean()
+        self.page.update()
         self.group = group
-        self.status = status
         self.id = id
 # виджеты
         self.text_name = TextField(label="ФИО", width=500, text_size=30,
@@ -1144,10 +1071,10 @@ class AddStudent:
 # кнопка назад
     def click_end(self, e):
         self.page.clean()
-        if self.status == 0:
-            Admin(self.page, self.cursor_db, self.db)
+        if self.id == 1:
+            Admin(self.page, self.db)
         else:
-            Card(self.group, self.page, self.cursor_db, id, self.db)
+            Card(self.group, self.page, self.id, self.db)
         self.page.update()
 
 # кнопка сохранить
@@ -1157,25 +1084,20 @@ class AddStudent:
                 self.page.show_banner(self.bs)
             else:
                 self.page.show_banner(self.dlg)
-                self.cursor_db.execute(f"INSERT INTO group{self.group} VALUES('{self.text_name.value}')")
+                self.db.insert_info_values_one(f"group{self.group}", self.text_name.value)
                 self.text_name.value = ''
             self.page.update()
-            self.db.commit()
         except:
             self.page.show_banner(self.error)
 
 
-class EditGroup:
-    def __init__(self, page, cursor_db, number, db):
-        self.page = page
-        self.cursor_db = cursor_db
-        self.db = db
+class EditGroup(Admin):
+    def __init__(self, pageA, dbA, number):
+        super().__init__(pageA, dbA)
+        self.page.clean()
+        self.page.update()
         self.number = number
-        self.num_group = ''
-
-        self.cursor_db.execute(f"SELECT num_group FROM group_db")
-        for i in self.cursor_db:
-            self.num_group = i
+        self.num_group = self.admin.get_list(self.db.get_info_select_from("num_group", "group_db"))
 
 # виджеты
         self.text_num_group = TextField(label="Группы", value=f'{number}', width=500, text_size=30,
@@ -1234,8 +1156,7 @@ class EditGroup:
 # кнопка назад
     def click_end(self, e):
         self.page.clean()
-        Admin(self.page, self.cursor_db, self.db)
-        self.page.update()
+        Admin(self.page, self.db)
 
 # кнопка сохранить
     def button_clicked(self, e):
@@ -1246,29 +1167,26 @@ class EditGroup:
             self.page.show_banner(self.error)
         elif 10000000 <= int(self.text_num_group.value) <= 99999999:
             self.page.show_banner(self.dlg)
-            self.cursor_db.execute(f"UPDATE group_db SET num_group='{self.text_num_group.value}' WHERE num_group={self.number}")
-            self.cursor_db.execute(f"ALTER TABLE group{self.number} RENAME TO group{self.text_num_group.value}")
-            self.cursor_db.execute(f"UPDATE teachers SET "
-                                       f"num_group = REPLACE(num_group, {self.number}, {self.text_num_group.value}) "
-                                       f"WHERE num_group LIKE '%{self.number}%'")
+            self.db.set_info_update_five("group_db", "num_group", self.text_num_group.value, "num_group", self.number)
+            self.db.set_alter_info_group(self.number, self.text_num_group.value)
+            self.db.set_info_update_replace_like("teachers", "num_group", "num_group",
+                                                 self.number, self.text_num_group.value, "num_group", self.number)
         else:
             self.page.show_banner(self.error)
-
         self.page.update()
-        self.db.commit()
 
 
-class EditStudent:
-    def __init__(self, page, cursor_db, name, db, number, status):
-        self.page = page
-        self.cursor_db = cursor_db
-        self.db = db
+class EditStudent(Admin):
+    def __init__(self, pageA, dbA, name, number, id):
+        super().__init__(pageA, dbA)
+        self.page.clean()
+        self.page.update()
         self.name = name
         self.number = number
-        self.status = status
+        self.id = id
 
 # виджеты
-        self.text_name = TextField(label="ФИО", value=f'{name}', width=500, text_size=30,
+        self.text_name = TextField(label="ФИО", value=f'{self.name}', width=500, text_size=30,
                               border_color="#28B463", border_width=2)
         self.but_save = ElevatedButton(text="Сохранить", on_click=self.button_clicked, width=200, height=50)
         self.but_end = ElevatedButton(text="Назад", on_click=self.click_end, width=200, height=50)
@@ -1313,10 +1231,10 @@ class EditStudent:
 # кнопка назад
     def click_end(self, e):
         self.page.clean()
-        if self.status == 0:
-            AdminGroup(self.page, self.cursor_db, self.number, self.db)
+        if self.id == 1:
+            AdminGroup(self.page, self.db, self.number)
         else:
-            Card(self.number, self.page, self.cursor_db, self.id, self.db)
+            Card(self.number, self.page,  self.id, self.db)
         self.page.update()
 
 # кнопка сохранить
@@ -1325,16 +1243,13 @@ class EditStudent:
             self.page.show_banner(self.bs)
         else:
             self.page.show_banner(self.dlg)
-            self.cursor_db.execute(f"UPDATE group{self.number} SET name='{self.text_name.value}' WHERE name='{self.name}'")
+            self.db.set_info_update_five(f"group{self.number}", "name",self.text_name.value, "name", self.name)
         self.page.update()
-        self.db.commit()
 
 
 def main(page: Page):
-    db = sqlite3.connect("bntu_db.db")
-
     page.theme_mode = 'light'
-    Main(page, db)
+    Main(page)
 
 
 app(target=main)
