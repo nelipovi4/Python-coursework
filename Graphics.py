@@ -1,4 +1,5 @@
 from flet import *
+import datetime
 
 from Admins import Admins
 from Databases import Databases
@@ -134,7 +135,10 @@ class Numbers:
         self.page = pageN
         self.id = id
         self.db = db
+
         self.teacher = Teachers()
+        self.statement = Statement()
+
         self.page.vertical_alignment = MainAxisAlignment.CENTER
         self.page.horizontal_alignment = CrossAxisAlignment.CENTER
         self.page.clean()
@@ -147,7 +151,7 @@ class Numbers:
                                                                                   "rowid", self.id))
         for i in list_num:
             def next_class(e, value=i):
-                Choice(value, self.page, self.id, self.db)
+                Choice(value, self.page, self.id, self.db, self.statement.get_today_date())
 
             self.page.add(
                 Row(
@@ -170,19 +174,20 @@ class Numbers:
 
 
 class Choice(Numbers):
-    def __init__(self, value, pageN, id, db):
+    def __init__(self, value, pageN, id, db, date):
         super().__init__(pageN, id, db)
         self.page.clean()
         self.page.update()
         self.value = value
         self.id = id
+        self.date = date
         self.page.vertical_alignment = MainAxisAlignment.CENTER
 
-        self.lv = ListView(expand=1, spacing=10, padding=20, width=700, visible=False,)
+        self.lv = ListView(expand=1, spacing=10, padding=20, width=700, visible=False)
         self.table_lv = ListView(expand=1, spacing=10, padding=15, width=1200)
         self.week_list = ['Имя', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
 
-        self.date_list = ['02.09.2024', '03.09.2024', '04.09.2024', '05.09.2024', '06.09.2024', '07.09.2024']
+        self.date_list = self.statement.get_weekdays(self.date)
 
         self.floating_action_button = FloatingActionButton(icon=icons.ADD, on_click=self.fab_pressed,
                                                            bgcolor=colors.LIME_300, visible=False)
@@ -242,10 +247,17 @@ class Choice(Numbers):
             self.lv.controls.append(self.card_container)
         self.page.add(self.lv)
 
-# Таблица с датами
-        self.statement = Statement()
+# Календарь
+        now = datetime.datetime.now()
         self.but_calendar = ElevatedButton(text="КАЛЕНДАРЬ", width=250, height=50, bgcolor='#B0E0E6', color='black',
-                                           on_click=self.transition_calendar)
+                                           on_click=lambda e: self.page.show_banner(
+                                            DatePicker(
+                                                first_date=datetime.datetime(year=2024, month=9, day=1),
+                                                last_date=datetime.datetime(year=now.year, month=now.month, day=now.day),
+                                                on_change=self.handle_change,
+                                                )
+                                            ))
+# Таблица с датами
         self.columns2 = [DataColumn(Text(f"{self.date_list[i]}", color="black", size=18)) for i in range(6)]
 
         self.table2 = DataTable(
@@ -272,7 +284,6 @@ class Choice(Numbers):
         )
 # таблица основная
         self.columns = [DataColumn(Text(f"{self.week_list[i]}", color="black")) for i in range(7)]
-        self.value_table = "."
         self.rows = [  # i - строки | j - столбцы
             DataRow([
                 DataCell(
@@ -282,7 +293,7 @@ class Choice(Numbers):
                                      size=25, color="black"),
                         width=200 if j == 0 else None,
                         on_click=lambda e, n=j, a=i:
-                        self.put_grade_student(self.date_list[n-1], self.list_name[a], self.value_table)
+                        self.put_grade_student(self.date_list[n-1], self.list_name[a])
                         if n != 0 else None,
                     )
                 )
@@ -337,22 +348,27 @@ class Choice(Numbers):
             ],
         )
 
+# календарь
+    def handle_change(self, e):
+        Choice(self.value, self.page, self.id, self.db, e.control.value.strftime('%d.%m.%Y'))
+
 # окно при нажатии на оценку
-    def put_grade_student(self, date, name, value_t):
-        self.text_date.value = f"{name} | {date} | {value_t}"
-        self.radio_group.value = value_t
+    def put_grade_student(self, date, name):
+        value_t = self.statement.check_which_value(self.db.get_info_join(f"{name}", f"{date}", f"{self.value}"))
+        self.text_date.value = f"{name} | {date}"
+        self.radio_group.value = value_t  # значение для radio button
         self.page.show_banner(self.dlg)
 
     def show_window_cancel(self, e):
         self.page.show_banner(self.cancel)
 
     def show_window_save(self, e):
-        name, date, value_t = self.text_date.value.split(" | ")  # отделяем имя, дату, значение
+        name, date = self.text_date.value.split(" | ")  # отделяем имя, дату
         self.db.delete_info_statement(f"{name}", f"{date}", f"{self.value}")
         if self.radio_group.value != ".":
             self.db.insert_info_values(f"statement{self.value}", f"'{name}', '{date}', '{self.radio_group.value}'")
         self.page.show_banner(self.save)
-        Choice(self.value, self.page, self.id, self.db)
+        Choice(self.value, self.page, self.id, self.db, date)
 
 # кнопка добавление
     def fab_pressed(self, e):
@@ -397,7 +413,10 @@ class Choice(Numbers):
 class Admin:
     def __init__(self, pageA, dbA):
         self.page = pageA
+
         self.admin = Admins()
+        self.statement = Statement()
+
         self.db = dbA
         self.page.horizontal_alignment = CrossAxisAlignment.CENTER
         self.page.vertical_alignment = MainAxisAlignment.CENTER
@@ -1137,7 +1156,7 @@ class AddStudent(Admin):
         if self.id == 1:
             Admin(self.page, self.db)
         else:
-            Choice(self.group, self.page, self.id, self.db)
+            Choice(self.group, self.page, self.id, self.db, self.statement.get_today_date())
         self.page.update()
 
 # кнопка сохранить
@@ -1297,7 +1316,7 @@ class EditStudent(Admin):
         if self.id == 1:
             AdminGroup(self.page, self.db, self.number)
         else:
-            Choice(self.number, self.page, self.id, self.db)
+            Choice(self.number, self.page, self.id, self.db, self.statement.get_today_date())
         self.page.update()
 
 # кнопка сохранить
