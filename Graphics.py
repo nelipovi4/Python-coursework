@@ -1,10 +1,9 @@
 from flet import *
-import sqlite3
-import calendar
-import datetime
+
 from Admins import Admins
 from Databases import Databases
 from Teachers import Teachers
+from Statement import Statement
 
 
 class Main:
@@ -138,6 +137,8 @@ class Numbers:
         self.teacher = Teachers()
         self.page.vertical_alignment = MainAxisAlignment.CENTER
         self.page.horizontal_alignment = CrossAxisAlignment.CENTER
+        self.page.clean()
+        self.page.update()
         self.click_cont()
 
 # контейнеры и нажатие на них
@@ -146,7 +147,7 @@ class Numbers:
                                                                                   "rowid", self.id))
         for i in list_num:
             def next_class(e, value=i):
-                Card(value, self.page, self.id, self.db)
+                Choice(value, self.page, self.id, self.db)
 
             self.page.add(
                 Row(
@@ -168,34 +169,32 @@ class Numbers:
             )
 
 
-class Card(Numbers):
+class Choice(Numbers):
     def __init__(self, value, pageN, id, db):
         super().__init__(pageN, id, db)
         self.page.clean()
         self.page.update()
         self.value = value
         self.id = id
-
         self.page.vertical_alignment = MainAxisAlignment.CENTER
-        self.list_motorcade = []
-        self.lv = ListView(expand=1, spacing=10, padding=20,width=1000)
-        self.table_lv = ListView(expand=1, spacing=10, padding=15, visible=False, width=1200)
+
+        self.lv = ListView(expand=1, spacing=10, padding=20, width=700, visible=False,)
+        self.table_lv = ListView(expand=1, spacing=10, padding=15, width=1200)
         self.week_list = ['Имя', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
-        today = datetime.date.today()
-        #print(f'{today.day - 1}/{today.month}/{today.year}')
-        self.date_list = ['2/9/2024', '3/9/2024', '4/9/2024', '5/9/2024', '6/9/2024', '7/9/2024']
+
+        self.date_list = ['02.09.2024', '03.09.2024', '04.09.2024', '05.09.2024', '06.09.2024', '07.09.2024']
 
         self.floating_action_button = FloatingActionButton(icon=icons.ADD, on_click=self.fab_pressed,
-                                                           bgcolor=colors.LIME_300)
+                                                           bgcolor=colors.LIME_300, visible=False)
         self.page.add(self.floating_action_button)
 
-        # CupertinoSlidingSegmentedButton
+# CupertinoSlidingSegmentedButton
         self.page.add(
             Row(
                 [
                     IconButton(icons.ARROW_BACK, on_click=self.click_arrow),
                     CupertinoSlidingSegmentedButton(
-                        selected_index=0,
+                        selected_index=1,
                         thumb_color=colors.BLUE_400,
                         padding=padding.symmetric(0, 15),
                         controls=[
@@ -208,10 +207,11 @@ class Card(Numbers):
                 ], alignment=MainAxisAlignment.CENTER,
             )
         )
-# Добавляем всё в список, где есть кортежи, а затем убираем кортежи
-        self.list_name = self.teacher.get_list_name(self.db.get_info_select_from("name",f"group{self.value}"))
+
+        self.list_name = self.teacher.get_list_name(self.db.get_info_select_from("name", f"group{self.value}"))
         self.len_list = len(self.list_name)
-        # Контейнеры
+
+# Контейнеры для карточек
         for i in range(self.len_list):
             self.card_container = Container(
                 content=Column(
@@ -237,28 +237,28 @@ class Card(Numbers):
                 width=600,
                 padding=10,
                 bgcolor=colors.SURFACE_VARIANT,
-                border_radius=border_radius.all(15)
+                border_radius=border_radius.all(15),
             )
             self.lv.controls.append(self.card_container)
         self.page.add(self.lv)
 
 # Таблица с датами
+        self.statement = Statement()
         self.but_calendar = ElevatedButton(text="КАЛЕНДАРЬ", width=250, height=50, bgcolor='#B0E0E6', color='black',
-                                           on_click=self.transition_calendar, visible=False)
+                                           on_click=self.transition_calendar)
         self.columns2 = [DataColumn(Text(f"{self.date_list[i]}", color="black", size=18)) for i in range(6)]
 
         self.table2 = DataTable(
-            width=882,
+            width=875,
             bgcolor="white",
             border=border.all(2, "#00FF7F"),
             border_radius=5,
             vertical_lines=BorderSide(2, "black"),
             columns=self.columns2,
-            visible=False
         )
         self.con = Container(
             content=self.table2,
-            padding=padding.only(left=38)
+            padding=padding.only(left=40)
         )
 
         self.page.add(
@@ -270,16 +270,20 @@ class Card(Numbers):
                 alignment=MainAxisAlignment.CENTER
             )
         )
-# таблица
+# таблица основная
         self.columns = [DataColumn(Text(f"{self.week_list[i]}", color="black")) for i in range(7)]
-
-        self.rows = [
+        self.value_table = "."
+        self.rows = [  # i - строки | j - столбцы
             DataRow([
                 DataCell(
                     Container(
-                        content=Text(f"{self.list_name[i]}" if j == 0 else "     Н", size=25, color="black"),
+                        content=Text(f"{self.list_name[i]}" if j == 0 else f"     {self.statement.check_which_value(
+                            self.db.get_info_join(f"{self.list_name[i]}", f"{self.date_list[j-1]}", f"{self.value}"))}",
+                                     size=25, color="black"),
                         width=200 if j == 0 else None,
-                        on_click=lambda e, n=j, a=i: print(f"Столбец {n + 1}, {self.list_name[a]}") if n != 0 else None,
+                        on_click=lambda e, n=j, a=i:
+                        self.put_grade_student(self.date_list[n-1], self.list_name[a], self.value_table)
+                        if n != 0 else None,
                     )
                 )
                 for j in range(7)
@@ -300,6 +304,56 @@ class Card(Numbers):
         self.table_lv.controls.append(table)
         self.page.add(self.table_lv)
 
+# всплывающее окна
+        self.cancel = AlertDialog(
+            title=Text("Данные не были обновлены", size=50, color="red"),
+        )
+
+        self.save = AlertDialog(
+            title=Text("Успешно", size=50, color="green"),
+        )
+
+# radio button
+        self.radio_group = RadioGroup(content=Row([
+            Radio(value="1", label="1", tooltip="1 час пропуска"),
+            Radio(value="2", label="2", tooltip="2 часа пропуска"),
+            Radio(value="1y", label="1y", tooltip="1 час (уважительно)"),
+            Radio(value="2y", label="2y", tooltip="2 часа (уважительно)"),
+            Radio(value=".", label="Пусто", tooltip="Очистить поле")
+        ]))
+
+        self.text_date = Text("")
+        self.dlg = AlertDialog(
+            title=self.text_date,
+            content=Row(
+                controls=[
+                    self.radio_group
+                ]
+            ),
+            actions=[
+                TextButton("Сохранить", on_click=lambda e: self.show_window_save(e)),
+                TextButton("Отмена", on_click=lambda e: self.show_window_cancel(e))
+
+            ],
+        )
+
+# окно при нажатии на оценку
+    def put_grade_student(self, date, name, value_t):
+        self.text_date.value = f"{name} | {date} | {value_t}"
+        self.radio_group.value = value_t
+        self.page.show_banner(self.dlg)
+
+    def show_window_cancel(self, e):
+        self.page.show_banner(self.cancel)
+
+    def show_window_save(self, e):
+        name, date, value_t = self.text_date.value.split(" | ")  # отделяем имя, дату, значение
+        self.db.delete_info_statement(f"{name}", f"{date}", f"{self.value}")
+        if self.radio_group.value != ".":
+            self.db.insert_info_values(f"statement{self.value}", f"'{name}', '{date}', '{self.radio_group.value}'")
+        self.page.show_banner(self.save)
+        Choice(self.value, self.page, self.id, self.db)
+
 # кнопка добавление
     def fab_pressed(self, e):
         self.page.clean()
@@ -319,7 +373,7 @@ class Card(Numbers):
             self.floating_action_button.visible = False
             self.table2.visible = True
             self.but_calendar.visible = True
-        else:  # Send
+        else:  # Mail
             self.lv.visible = False
             self.table_lv.visible = False
             self.floating_action_button.visible = False
@@ -330,7 +384,7 @@ class Card(Numbers):
 # стрелка назад
     def click_arrow(self, e):
         self.page.clean()
-        Numbers(self.page, self.db, self.id)
+        Numbers(self.page, self.id, self.db)
 
     def transition_class_edit(self, name):
         self.page.clean()
@@ -492,7 +546,7 @@ class AdminGroup(Admin):
         self.number = number
         self.page.horizontal_alignment = CrossAxisAlignment.CENTER
         self.page.vertical_alignment = MainAxisAlignment.CENTER
-        self.lv = ListView(expand=1, spacing=10, padding=20, width=1000)
+        self.lv = ListView(expand=1, spacing=10, padding=20, width=700)
         self.list_motorcade = []
 # кнопка добавление
         self.floating_action_button_students = FloatingActionButton(icon=icons.ADD, on_click=self.fab_pressed_students,
@@ -692,8 +746,10 @@ class SettingsAdmin(Admin):
         if self.text_name.value == '' or self.text_pass.value == '' or self.text_email.value == '':
             self.page.show_banner(self.bs)
         else:
-            self.db.set_info_update_nine("teachers", "name", self.text_name.value, "password", self.text_pass.value,
-                                         "email", self.text_email.value, "rowid", self.id)
+            self.db.set_info_update("teachers", f"name='{self.text_name.value}', "
+                                                f"password='{self.text_pass.value}', "
+                                                f"email='{self.text_email.value}'",
+                                                f"rowid='{self.id}'")
             self.page.show_banner(self.dlg)
         self.page.update()
 
@@ -811,10 +867,13 @@ class EditTeachers(Admin):
 
                 if kol_right == len(list_num):
                     self.page.show_banner(self.dlg)
-                    self.db.set_info_update_thirteen("teachers", "name", self.text_name.value, "password",
-                                                     self.text_pass.value, "login", self.text_login.value,
-                                                     "items", self.text_items.value, "num_group",
-                                                     self.text_num_group.value, "rowid", self.rowid)
+                    self.db.set_info_update("teachers",
+                        f"name='{self.text_name.value}', "
+                        f"password='{self.text_pass.value}', "
+                        f"login='{self.text_login.value}', "
+                        f"items='{self.text_items.value}', "
+                        f"num_group='{self.text_num_group.value}'",
+                        f"rowid={self.rowid}")
             except:
                 self.error_write_num.value = ("ОШИБКА, в поле Группы нужно записывать через запятую и"
                                               " с одним пробелом после")
@@ -892,8 +951,9 @@ class AddGroup(Admin):
                 self.page.show_banner(self.bs)
             elif 10000000 <= int(self.text_num_group.value) <= 99999999:
                 self.page.show_banner(self.dlg)
-                self.db.insert_info_values_one("group_db", self.text_num_group.value)
+                self.db.insert_info_values("group_db", self.text_num_group.value)
                 self.db.create_table_group(self.text_num_group.value)
+                self.db.create_table_statement(self.text_num_group.value)
                 self.text_num_group.value = ''
             else:
                 self.page.show_banner(self.error)
@@ -1000,9 +1060,12 @@ class AddTeachers(Admin):
 
                 if kol_right == len(list_num):
                     self.page.show_banner(self.dlg)
-                    self.db.insert_info_values_six("teachers", self.text_name.value, self.text_login.value,
-                                                   self.text_password.value, self.text_items.value,
-                                                   self.text_num_group.value)
+                    self.db.insert_info_values("teachers", f"{self.text_name.value}, "
+                                                           f"{self.text_login.value}, "
+                                                           f"{self.text_password.value}, "
+                                                           f"{self.text_items.value}, "
+                                                           f"{self.text_num_group.value}, "
+                                                           f"'None'")
                     self.text_name.value = ''
                     self.text_login.value = ''
                     self.text_password.value = ''
@@ -1074,7 +1137,7 @@ class AddStudent(Admin):
         if self.id == 1:
             Admin(self.page, self.db)
         else:
-            Card(self.group, self.page, self.id, self.db)
+            Choice(self.group, self.page, self.id, self.db)
         self.page.update()
 
 # кнопка сохранить
@@ -1084,7 +1147,7 @@ class AddStudent(Admin):
                 self.page.show_banner(self.bs)
             else:
                 self.page.show_banner(self.dlg)
-                self.db.insert_info_values_one(f"group{self.group}", self.text_name.value)
+                self.db.insert_info_values(f"group{self.group}", f"'{self.text_name.value}'")
                 self.text_name.value = ''
             self.page.update()
         except:
@@ -1167,7 +1230,7 @@ class EditGroup(Admin):
             self.page.show_banner(self.error)
         elif 10000000 <= int(self.text_num_group.value) <= 99999999:
             self.page.show_banner(self.dlg)
-            self.db.set_info_update_five("group_db", "num_group", self.text_num_group.value, "num_group", self.number)
+            self.db.set_info_update("group_db", f"num_group={self.text_num_group.value}", f"num_group={self.number}")
             self.db.set_alter_info_group(self.number, self.text_num_group.value)
             self.db.set_info_update_replace_like("teachers", "num_group", "num_group",
                                                  self.number, self.text_num_group.value, "num_group", self.number)
@@ -1234,7 +1297,7 @@ class EditStudent(Admin):
         if self.id == 1:
             AdminGroup(self.page, self.db, self.number)
         else:
-            Card(self.number, self.page,  self.id, self.db)
+            Choice(self.number, self.page, self.id, self.db)
         self.page.update()
 
 # кнопка сохранить
@@ -1243,7 +1306,7 @@ class EditStudent(Admin):
             self.page.show_banner(self.bs)
         else:
             self.page.show_banner(self.dlg)
-            self.db.set_info_update_five(f"group{self.number}", "name",self.text_name.value, "name", self.name)
+            self.db.set_info_update(f"group{self.number}", f"name='{self.text_name.value}'", f"name='{self.name}'")
         self.page.update()
 
 

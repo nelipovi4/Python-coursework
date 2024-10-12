@@ -3,12 +3,6 @@ class Teachers:
 	def __init__(self):
 		self.list_name_global = []
 
-	def set_list_name_global(self, lists):
-		self.list_name_global = self.get_list_name(lists)
-
-	def get_list_name_global(self):
-		return self.list_name_global
-
 	def get_list_group(self, lists):
 		list_num = []
 		for i in lists:
