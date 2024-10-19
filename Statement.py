@@ -16,10 +16,14 @@ class Statement:
 			unique_results.add(row)
 
 		if not unique_results:
-			return "."
+			return " ."
 		else:
 			for row in unique_results:
-				return row[0]
+				len_row = len(row[0])
+				if len_row == 1:
+					return f" {row[0]}"
+				else:
+					return f"{row[0]}"
 
 	def get_weekdays(self, date_string):
 		day, month, year = map(int, date_string.split('.'))

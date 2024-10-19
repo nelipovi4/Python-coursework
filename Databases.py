@@ -59,3 +59,14 @@ class Databases:
 	def delete_info_statement(self, name, date, group):
 		self.cursor_db.execute(f"DELETE FROM statement{group} WHERE name = '{name}' AND date = '{date}'")
 		self.db.commit()
+
+# drop
+	def drop_table(self, number):
+		self.cursor_db.execute(f"DROP TABLE group{number}")
+		self.cursor_db.execute(f"DELETE FROM group_db WHERE num_group = '{number}'")
+		self.cursor_db.execute(f"DROP TABLE statement{number}")
+		self.db.commit()
+
+	def drop_teachers_student(self, table, condition):
+		self.cursor_db.execute(f"DELETE FROM {table} WHERE {condition}")
+		self.db.commit()
