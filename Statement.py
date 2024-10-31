@@ -25,6 +25,24 @@ class Statement:
 				else:
 					return f"{row[0]}"
 
+	def check_which_value_practice(self, cursor_db):
+		unique_results = set()
+
+		for row in cursor_db:
+			unique_results.add(row)
+
+		if not unique_results:
+			return "      ."
+		else:
+			for row in unique_results:
+				try:
+					if int(row[0]) > 9:
+						return f" {row[0]} | {row[1]}"
+					else:
+						return f"   {row[0]} | {row[1]}"
+				except:  # может произойти ошибка, если там встретится '.'
+					return f"   {row[0]} | {row[1]}"
+
 	def get_weekdays(self, date_string):
 		day, month, year = map(int, date_string.split('.'))
 		input_date = datetime.date(year, month, day)

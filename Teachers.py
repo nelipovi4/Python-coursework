@@ -15,3 +15,13 @@ class Teachers:
 		for i in lists:
 			list_num_name.extend(i)
 		return list_num_name
+
+	def get_list_date(self, lists):
+		list_nn_date = ["                 ", "                 ", "                 ", "                 ", "                 ", "                 "]
+		len_lists = len(lists)
+		lists.sort()
+
+		if len_lists <= 7:
+			for i in range(len_lists):
+				list_nn_date[i] = lists[i]
+			return list_nn_date
