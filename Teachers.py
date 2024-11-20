@@ -16,12 +16,10 @@ class Teachers:
 			list_num_name.extend(i)
 		return list_num_name
 
-	def get_list_date(self, lists):
-		list_nn_date = ["                 ", "                 ", "                 ", "                 ", "                 ", "                 "]
-		len_lists = len(lists)
-		lists.sort()
+	def get_str(self, cursor_db):
+		text = ''
 
-		if len_lists <= 7:
-			for i in range(len_lists):
-				list_nn_date[i] = lists[i]
-			return list_nn_date
+		for i in cursor_db:
+			text += i[0]
+
+		return text

@@ -43,15 +43,34 @@ class Statement:
 				except:  # может произойти ошибка, если там встретится '.'
 					return f"   {row[0]} | {row[1]}"
 
-	def get_weekdays(self, date_string):
-		day, month, year = map(int, date_string.split('.'))
-		input_date = datetime.date(year, month, day)
+	def get_list_date(self, lists):
+		list_nn_date = ["                 ", "                 ",
+		"                 ", "                 ",
+		"                 ", "                 "]
+		len_lists = len(lists)
+		lists.sort()
 
-		# Найдем понедельник недели, в которую входит введенная дата
-		start_of_week = input_date - datetime.timedelta(days=input_date.weekday() + 1)
+		if len_lists <= 6:
+			for i in range(len_lists):
+				list_nn_date[i] = lists[i]
+		else:
+			list_nn_date = []
+			for i in range(len_lists):
+				list_nn_date.append(lists[i])
+			while len(list_nn_date) % 6 != 0:
+				list_nn_date.append("                 ")
+		return list_nn_date
 
+	def get_list_week(self, dates):
+		days_of_week = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 		weekdays = []
-		for i in range(7):
-			current_date = start_of_week + datetime.timedelta(days=i+1)
-			weekdays.append(current_date.strftime('%d.%m.%Y'))
+
+		for date_str in dates:
+			if date_str != "                 ":
+				date_obj = datetime.datetime.strptime(date_str, "%d.%m.%Y")
+				# Получаем день недели (0 = Пн, 6 = Вс)
+				day_of_week = date_obj.weekday()
+				weekdays.append(days_of_week[day_of_week])
+			else:
+				weekdays.append("  ")
 		return weekdays
