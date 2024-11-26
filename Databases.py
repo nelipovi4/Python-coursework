@@ -98,6 +98,10 @@ class Databases:
 		self.cursor_db.execute(f"DELETE FROM group{group} WHERE {condition}")
 		self.db.commit()
 
+	def delete_all_value_table(self, table):
+		self.cursor_db.execute(f"DELETE FROM {table}")
+		self.db.commit()
+
 # drop
 	def drop_table(self, number):
 		self.cursor_db.execute(f"DROP TABLE group{number}")
