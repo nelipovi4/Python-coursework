@@ -13,8 +13,9 @@ class Student:
 			return "Нету оценок"
 		else:
 			for i in grade:
-				sum_grade += int(i)
-			return sum_grade / len_grade
+				if i != ".":
+					sum_grade += int(i)
+			return sum_grade // len_grade
 
 	def get_statistics_progress(self, cursor, date):
 		progress = []

@@ -3,7 +3,7 @@ import sqlite3
 
 class Databases:
 	def __init__(self):
-		self.db = sqlite3.connect("bntu_db.db")
+		self.db = sqlite3.connect("bntu_db.db", check_same_thread=False)
 		self.cursor_db = self.db.cursor()
 
 # select
@@ -19,8 +19,12 @@ class Databases:
 		self.db.commit()
 
 # create
-	def create_table_group(self, group):
-		self.cursor_db.execute(f"CREATE TABLE group{group}(name, subgroup)")
+	def create_table_group(self, group, id):
+		self.cursor_db.execute(f"CREATE TABLE group{group}_{id}(name, subgroup)")
+		self.db.commit()
+
+	def create_table(self, group, value):
+		self.cursor_db.execute(f"CREATE TABLE {group}({value})")
 		self.db.commit()
 
 	def create_table_statement(self, group, types):
@@ -63,6 +67,7 @@ class Databases:
 		self.cursor_db.execute(f"ALTER TABLE statement_lecture{group} RENAME TO statement_lecture{group_new}")
 		self.cursor_db.execute(f"ALTER TABLE statement_consultation{group} RENAME TO statement_consultation{group_new}")
 		self.cursor_db.execute(f"ALTER TABLE statement_practice{group} RENAME TO statement_practice{group_new}")
+		self.cursor_db.execute(f"ALTER TABLE date_{group} RENAME TO date_{group_new}")
 		self.db.commit()
 
 # join
@@ -109,5 +114,6 @@ class Databases:
 		self.cursor_db.execute(f"DROP TABLE statement_lecture{number}")
 		self.cursor_db.execute(f"DROP TABLE statement_consultation{number}")
 		self.cursor_db.execute(f"DROP TABLE statement_practice{number}")
+		self.cursor_db.execute(f"DROP TABLE date_{number}")
 		self.db.commit()
 

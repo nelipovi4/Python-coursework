@@ -1,5 +1,8 @@
 from flet import *
 import datetime
+import xlsxwriter
+import os
+import threading
 
 from Admins import Admins
 from Databases import Databases
@@ -7,6 +10,168 @@ from Teachers import Teachers
 from Statement import Statement
 from Excel import Excel
 from Student import Student
+from Mail import Mail
+
+
+class SplashScreen:
+    def __init__(self, page):
+        self.page = page
+        self.page.title = "BNTU"
+        self.page.theme_mode = 'light'
+        self.timer_thread = None
+        self.is_running = True  # Флаг для отслеживания состояния приложения
+        self.page.on_close = self.stop_timers  # Привязываем остановку таймеров к закрытию программы
+        self.start_timer()
+        self.draw_graphics()
+
+    def start_timer(self):
+        # Основной таймер на 60 секунд
+        self.timer_thread = threading.Timer(60, self.close_application)
+        self.timer_thread.start()
+
+        # Таймер на 10 секунд до завершения для предупреждения
+        threading.Timer(50, self.show_ten_seconds_warning).start()
+
+    def stop_timers(self, _=None):
+        # Остановка всех таймеров при закрытии окна
+        self.is_running = False  # Устанавливаем флаг, что приложение закрывается
+        if self.timer_thread and self.timer_thread.is_alive():
+            self.timer_thread.cancel()
+        print("Таймер остановлен.")
+
+    def show_ten_seconds_warning(self):
+        # Проверяем, активно ли приложение перед показом диалога
+        if not self.is_running:
+            return
+
+        # Открытие диалогового окна за 10 секунд до завершения таймера
+        self.dialog = AlertDialog(
+            title=Text("AFK"),
+            content=Text("Через 10 секунд окно закроется!"),
+            actions=[
+                TextButton("Продолжить", on_click=self.close_dialog)  # Кнопка закрытия уведомления
+            ]
+        )
+        self.page.dialog = self.dialog
+        self.dialog.open = True
+        self.page.update()
+
+    def close_dialog(self, e):
+        # Закрытие диалогового окна (но приложение продолжает отсчет времени)
+        if not self.is_running:
+            return
+        self.dialog.open = False
+        self.page.update()
+
+    def draw_graphics(self):
+        self.button_go = ElevatedButton(text="Далее", width=300, height=50, bgcolor="#2196F3",
+                                           color='black', on_click=lambda _: self.stop_timer_and_proceed())
+        self.dialog = AlertDialog(
+            title=Text("AFK"),
+            content=Text("Через 10 секунд окно закроется!"),
+            actions=[
+                TextButton("Продолжить", on_click=self.page.close_banner())  # Кнопка закрытия
+            ]
+        )
+
+        self.page.add(
+        Container(
+            content=Column(
+                [
+                    Text(value="Белорусский национальный технический университет", weight=FontWeight.BOLD, size=20),
+                    Text(value="Факультет информационных технологий и робототехники", weight=FontWeight.BOLD, size=20),
+                    Text(value="Кафедра программного обеспечения информационных систем и технологий", weight=FontWeight.BOLD, size=20)
+                ],
+                alignment=MainAxisAlignment.CENTER,
+                horizontal_alignment=CrossAxisAlignment.CENTER,
+                spacing=1
+            ),
+            padding=padding.only(left=250)
+        )
+    )
+        self.page.add(
+            Column(
+                [
+                    Container(Text(value="Курсовой проект", weight=FontWeight.BOLD, size=26),
+                                 padding=padding.only(top=80), alignment=alignment.center),
+                    Text(value="по дисциплине  Языки программирования", weight=FontWeight.BOLD, size=14)
+                ],
+                alignment=MainAxisAlignment.CENTER,
+                horizontal_alignment=CrossAxisAlignment.CENTER,
+                spacing=2
+            )
+        )
+        self.page.add(Row([Text(value='Приложение "Контроль успеваемости студентов"'
+                                      , weight=FontWeight.BOLD, size=22)], alignment=MainAxisAlignment.CENTER))
+        self.page.add(
+            Row(
+                [
+                    Container(
+                        Image(src="img/logo.jpg"),
+                        alignment=alignment.center_left,
+                        padding=padding.only(left=70),
+                        expand=True
+                    ),
+                    Container(
+                        Column(
+                            [
+                                Column([
+                                    Text(value='Выполнил: Студент группы 10701123', size=17),
+                                    Text(value='Нелипович Евгений Григорьевич', size=17)],
+                                    spacing=0),  # Блок с фамилией студента
+                                Container(
+                                    Column([
+                                        Text(value='Преподаватель: к.ф.-м.н., доц.', size=17),
+                                        Text(value='Сидорик Валерий Владимирович', size=17)],
+                                        spacing=0),  # Блок с фамилией преподавателя
+                                    padding=padding.only(right=23),
+                                )
+                            ],
+                            spacing=25,
+                            horizontal_alignment=CrossAxisAlignment.END
+                        ),
+                        alignment=alignment.center_right,
+                    )
+                ],
+                alignment=MainAxisAlignment.SPACE_BETWEEN,
+                vertical_alignment=CrossAxisAlignment.CENTER
+            )
+        )
+        self.page.add(
+            Column(
+                [
+                    Container(
+                        Row(
+                            [Text(value='Минск, 2024', size=20)],
+                            alignment=MainAxisAlignment.CENTER
+                        ),
+                        padding=padding.only(top=15),
+                        alignment=alignment.center
+                    )
+                ],
+                horizontal_alignment=CrossAxisAlignment.CENTER
+            )
+        )
+        self.page.add(
+            Row(
+                [
+                    self.button_go,
+                ],
+                alignment=MainAxisAlignment.SPACE_BETWEEN,
+            )
+        )
+        self.page.update()
+
+    def close_application(self):
+        # Проверяем, активно ли приложение перед завершением
+        if not self.is_running:
+            return
+        self.page.window_close()
+
+    def stop_timer_and_proceed(self):
+        # Остановка таймера и переход к следующему экрану
+        self.stop_timers()
+        Main(self.page)  # Переход к следующему экрану
 
 
 class Main:
@@ -14,55 +179,70 @@ class Main:
         self.page = pageM
         self.db = Databases()
         self.page.title = "BNTU"
+        self.page.clean()
+        self.page.update()
         self.page.vertical_alignment = MainAxisAlignment.CENTER
+        self.page.window_maximized = True
 
-        # виджеты
-        self.user_login = TextField(value="", width=300, text_align=TextAlign.LEFT, label="Логин", height=100,
-                                    on_change=self.validate)
-        self.user_password = TextField(value="", width=300, text_align=TextAlign.LEFT, label="Пароль", password=True,
-                                       can_reveal_password=True, height=80, on_change=self.validate)
-        self.btn_entry = ElevatedButton(text="Войти", disabled=True, width=300, height=50, bgcolor='#B0E0E6',
-                                        color='black', on_click=self.check_users)
+        if self.check_auto() is None:
+            for i in self.db.get_info_select_from("email", "teachers WHERE name='admin'"):
+                self.email = i
 
-        # верхний бар
-        self.page.appbar = AppBar(
-            leading_width=20,
-            title=Text("БНТУ | BNTU"),
-            bgcolor=colors.SURFACE_VARIANT,
-            actions=[
-                IconButton(icons.SUNNY, on_click=self.change_topic),
-                PopupMenuButton(
-                    items=[
-                        PopupMenuItem(text="Тех. поддержка"),
-                        PopupMenuItem(text="Выход", on_click=lambda _: self.page.window_close()),
-                    ]
-                ),
-            ],
-        )
+            # виджеты
+            self.user_login = TextField(value="", width=300, text_align=TextAlign.LEFT, label="Логин", height=100,
+                                        on_change=self.validate)
+            self.user_password = TextField(value="", width=300, text_align=TextAlign.LEFT, label="Пароль",
+                                           password=True,
+                                           can_reveal_password=True, height=80, on_change=self.validate)
+            self.btn_entry = ElevatedButton(text="Войти", disabled=True, width=300, height=50, bgcolor='#B0E0E6',
+                                            color='black', on_click=lambda _: self.check_users())
+            self.check_box = CupertinoCheckbox(label="Запомнить меня")
 
-        # ряд
-        self.page.add(
-            Row(
-                [
-                    Column([
-                        self.user_login,
-                        self.user_password,
-                        self.btn_entry
-                    ])
-                ], alignment=MainAxisAlignment.CENTER
+            # верхний бар
+            self.page.appbar = AppBar(
+                leading_width=20,
+                title=Text("БНТУ | BNTU"),
+                bgcolor=colors.SURFACE_VARIANT,
+                actions=[
+                    IconButton(icons.SUNNY, on_click=self.change_topic),
+                    PopupMenuButton(
+                        items=[
+                            PopupMenuItem(text="Об авторе", on_click=lambda _: self.autor_app(1)),
+                            PopupMenuItem(text="Об приложении", on_click=lambda _: self.autor_app(2)),
+                            PopupMenuItem(text="Тех. поддержка", on_click=lambda _: self.page.show_banner(
+                                AlertDialog(
+                                    title=Text("Тех. поддержка"),
+                                    content=Text(f"Ко всем вопросам пишите на почту\n{self.email[0]}", size=25),
+                                    actions=[
+                                        TextButton("Отмена", on_click=lambda e: self.page.close_banner()),
+                                    ]
+                                )
+                            )),
+                            PopupMenuItem(text="Выход", on_click=lambda _: self.page.window_close()),
+                        ]
+                    ),
+                ],
             )
-        )
+            # ряд
+            self.page.add(
+                Row(
+                    [
+                        Column([
+                            self.user_login,
+                            self.user_password,
+                            self.check_box,
+                            self.btn_entry,
+                        ])
+                    ], alignment=MainAxisAlignment.CENTER
+                )
+            )
 
 # переход по темам
     def change_topic(self, e):
         if self.page.theme_mode == "light":
             self.page.theme_mode = 'dark'
-            self.user_login.border_color = 'white'
-            self.user_password.border_color = 'white'
         else:
             self.page.theme_mode = 'light'
-            self.user_login.border_color = 'black'
-            self.user_password.border_color = 'black'
         self.page.update()
 
 # проверка, было что-то написано в логине и пароле
@@ -73,41 +253,34 @@ class Main:
             self.btn_entry.disabled = True
         self.page.update()
 
-# аватар
-    def avatar(self, name, id):
-        self.page.clean()
-        AccountTeachers(self.page, name, id, self.db)
-        self.page.update()
-
-# выход
-    def logout(self):
-        self.page.clean()
-        Main(self.page)
-        self.page.update()
-
-# настройки
-    def settings(self, id):
-        self.page.clean()
-        SettingsAdmin(self.page, self.db, id)
-
 # проверка на вход
-    def check_users(self, e):
+    def check_users(self):
         for i in self.db.get_info_select_from("rowid, login, password, name", "teachers"):
             if (f'{self.user_login.value}', f'{self.user_password.value}') == (i[1], i[2]):
+                self.page.show_banner(SnackBar(Text(f"Успешный вход", size=20)))
                 self.page.clean()
+                if self.check_box.value:
+                    self.db.set_info_update("teachers", "new_check='1'", f"rowid='{i[0]}'")
                 if i[0] == 1:
                     self.page.appbar = AppBar(
                         leading_width=20,
                         title=Text(f"БНТУ | BNTU   {i[3]}"),
                         bgcolor=colors.SURFACE_VARIANT,
                         actions=[
-                            IconButton(icons.SETTINGS, on_click=lambda event: self.settings(i[0])),
+                            IconButton(icons.SETTINGS, on_click=lambda _: SettingsAdmin(self.page, self.db, i[0])),
                             IconButton(icons.SUNNY, on_click=self.change_topic),
                             PopupMenuButton(
                                 items=[
-                                    PopupMenuItem(text="Руководство"),
-                                    PopupMenuItem(text="Тех. поддержка"),
-                                    PopupMenuItem(text="Выход из аккаунта", on_click=lambda event: self.logout())
+                                    PopupMenuItem(text="Тех. поддержка", on_click=lambda _: self.page.show_banner(
+                    AlertDialog(
+                        title=Text("Тех. поддержка"),
+                        content=Text(f"Ко всем вопросам пишите на почту\n{self.email[0]}", size=25),
+                        actions=[
+                            TextButton("Отмена", on_click=lambda e: self.page.close_banner()),
+                        ]
+                    )
+                )),
+                                    PopupMenuItem(text="Выход из аккаунта", on_click=lambda _: self.leave_acc(i[0]))
                                 ]
                             ),
                         ],
@@ -123,31 +296,139 @@ class Main:
                             PopupMenuButton(
                                 icon=icons.ACCOUNT_CIRCLE_OUTLINED,
                                 items=[
-                                    PopupMenuItem(text="Аккаунт", on_click=lambda event: self.avatar(i[3], i[0])),
-                                    PopupMenuItem(text="Выход из аккаунта", on_click=lambda event: self.logout())
+                                    PopupMenuItem(text="Аккаунт", on_click=lambda _: AccountTeachers(self.page, i[3], i[0], self.db)),
+                                    PopupMenuItem(text="Выход из аккаунта", on_click=lambda _: self.leave_acc(i[0]))
                                 ]
                             ),
                             IconButton(icons.SUNNY, on_click=self.change_topic),
                             PopupMenuButton(
                                 items=[
-                                    PopupMenuItem(text="Руководство"),
                                     PopupMenuItem(text="Настройки", on_click=lambda e: Settings(self.page, i[0], self.db)),
-                                    PopupMenuItem(text="Тех. поддержка"),
+                                    PopupMenuItem(text="Тех. поддержка", on_click=lambda _: self.page.show_banner(
+                    AlertDialog(
+                        title=Text("Тех. поддержка"),
+                        content=Text(f"Ко всем вопросам пишите на почту\n{self.email[0]}", size=25),
+                        actions=[
+                            TextButton("Отмена", on_click=lambda e: self.page.close_banner()),
+                        ]
+                    )
+                )),
                                 ]
                             ),
                         ],
                     )
                     self.page.update()
                     Numbers(self.page, i[0], self.db)
+            else:
+                self.page.show_banner(SnackBar(Text(f"Неверные данные", size=20)))
+
+    def autor_app(self, value):
+        text = Text(size=20)
+        img = Image()
+        if value == 1:
+            text.value = "Нелипович Евгений Григорьевич\n10701123\nzhenya.nelipovich@gmail.com"
+            img.src = "img/i.jpg"
+        else:
+            img.src = "img/logo.jpg"
+            text.value = ("Программа 'Контроль успеваемости'\n"
+                          "предназначена для мониторинга и анализа академических результатов учащихся.\n "
+                          "Она помогает учителям отслеживать прогресс в обучении, выявлять слабые и сильные стороны,\n "
+                          "а также планировать дальнейшую учебную деятельность.")
+
+        self.page.show_banner(AlertDialog(
+            content=Column([
+                img,
+                text
+            ], alignment=alignment.center),
+            actions=[
+                TextButton("Отмена", on_click=lambda e: self.page.close_banner()),
+            ]
+        ))
+
+    def check_auto(self):
+        for i in self.db.get_info_select_from("rowid, login, password, name", "teachers WHERE new_check='1'"):
+            if i[0] == 1:
+                self.page.clean()
+                self.page.appbar = AppBar(
+                    leading_width=20,
+                    title=Text(f"БНТУ | BNTU   {i[3]}"),
+                    bgcolor=colors.SURFACE_VARIANT,
+                    actions=[
+                        IconButton(icons.SETTINGS, on_click=lambda _: SettingsAdmin(self.page, self.db, i[0])),
+                        IconButton(icons.SUNNY, on_click=self.change_topic),
+                        PopupMenuButton(
+                            items=[
+                                PopupMenuItem(text="Тех. поддержка", on_click=lambda _: self.page.show_banner(
+                                    AlertDialog(
+                                        title=Text("Тех. поддержка"),
+                                        content=Text(f"Ко всем вопросам пишите на почту\n{self.email[0]}", size=25),
+                                        actions=[
+                                            TextButton("Отмена", on_click=lambda e: self.page.close_banner()),
+                                        ]
+                                    )
+                                )),
+                                PopupMenuItem(text="Выход из аккаунта", on_click=lambda _: self.leave_acc(i[0]))
+                            ]
+                        ),
+                    ],
+                )
+                self.page.update()
+                Admin(self.page, self.db)
+                return 1
+            else:
+                self.page.appbar = AppBar(
+                    leading_width=20,
+                    title=Text(f"БНТУ | BNTU   {i[3]}"),
+                    bgcolor=colors.SURFACE_VARIANT,
+                    actions=[
+                        PopupMenuButton(
+                            icon=icons.ACCOUNT_CIRCLE_OUTLINED,
+                            items=[
+                                PopupMenuItem(text="Аккаунт",
+                                              on_click=lambda _: AccountTeachers(self.page, i[3], i[0], self.db)),
+                                PopupMenuItem(text="Выход из аккаунта", on_click=lambda _: self.leave_acc(i[0]))
+                            ]
+                        ),
+                        IconButton(icons.SUNNY, on_click=self.change_topic),
+                        PopupMenuButton(
+                            items=[
+                                PopupMenuItem(text="Настройки", on_click=lambda e: Settings(self.page, i[0], self.db)),
+                                PopupMenuItem(text="Тех. поддержка", on_click=lambda _: self.page.show_banner(
+                                    AlertDialog(
+                                        title=Text("Тех. поддержка"),
+                                        content=Text(f"Ко всем вопросам пишите на почту\n{self.email[0]}", size=25),
+                                        actions=[
+                                            TextButton("Отмена", on_click=lambda e: self.page.close_banner()),
+                                        ]
+                                    )
+                                )),
+                            ]
+                        ),
+                    ],
+                )
+                self.page.update()
+                Numbers(self.page, i[0], self.db)
+                return 1
+
+    def leave_acc(self, id):
+        self.db.set_info_update("teachers", "new_check='0'", f"rowid='{id}'")
+        Main(self.page)
 
 
 class Numbers:
     def __init__(self, pageN, id, db):
+        self.mail_con = None
+        self.choice_types = None
+        self.comment = None
+        self.mail = None
+        self.name = None
+        self.scroll_container = None
         self.page = pageN
         self.id = id
         self.db = db
         self.teacher = Teachers()
         self.statement = Statement()
+        self.mail = Mail()
 
         self.page.clean()
         self.page.update()
@@ -191,7 +472,7 @@ class Numbers:
                             content=Text("ОТПРАВИТЬ", size=20),
                             width=175,
                             height=75,
-                            on_click=lambda e: Mail(self.page, self.id, self.db, selected_value['value'])
+                            on_click=lambda e: self.next_class(selected_value['value'], 2)
                         ),
                         ElevatedButton(
                             content=Text("ТАБЛИЦА", size=20),
@@ -256,7 +537,7 @@ class Numbers:
                             content=Text("ОТПРАВИТЬ", size=20),
                             width=175,
                             height=75,
-                            on_click=lambda e: Mail(self.page, self.id, self.db, selected_number_ref.current.value)
+                            on_click=lambda e: self.next_class(selected_number_ref.current.value, 2)
                         ),
                         ElevatedButton(
                             content=Text("ТАБЛИЦА", size=20),
@@ -286,10 +567,10 @@ class Numbers:
                             Row([
                                 ElevatedButton(text="ОТПРАВИТЬ",
                                                height=50,
-                                               on_click=lambda _: Mail(self.page, self.id, self.db, value)),
+                                               on_click=lambda _: self.next_class(value, 1)),
                                 ElevatedButton(text="ТАБЛИЦА",
                                                height=50,
-                                               on_click=lambda _: self.next_class(value)),
+                                               on_click=lambda _: self.next_class(value, 2)),
                             ])
                         ),
                         actions=[
@@ -318,9 +599,88 @@ class Numbers:
             )
         self.page.add(scroll_cont)
 
-    def next_class(self, value):
+    def next_class(self, value, choice):
         self.page.close_banner()
-        Visible(self.page, self.id, self.db, value, self.statement.get_today_date())
+        if choice == 2:
+            Visible(self.page, self.id, self.db, value, self.statement.get_today_date())
+        else:
+            self.scroll_container = ListView(width=700, height=500)
+            self.name = TextField(
+                value=f"{self.teacher.get_str(self.db.get_info_select_from("name", f"teachers WHERE rowid='{self.id}'"))}",
+                width=700, text_align=TextAlign.LEFT, label="От кого", height=100)
+            self.mail_con = TextField(value="@gmail.com", width=700, text_align=TextAlign.LEFT, label="Почта(получателя)", height=100)
+            self.comment = TextField(value="", width=700, text_align=TextAlign.LEFT, label="Комментарий(необязательно)",
+                                     height=100)
+
+            self.choice_types = RadioGroup(
+                content=Row([
+                    Radio(value="practice", label="Практика"),
+                    Radio(value="lecture", label="Лекция"),
+                    Radio(value="consultation", label="Консультация"),
+                ]),
+                value="practice",
+            )
+
+            self.scroll_container.controls.append(
+                Column([
+                    self.name,
+                    self.mail_con,
+                    self.comment,
+                    self.choice_types,
+                ])
+            )
+            self.page.show_banner(
+                AlertDialog(
+                    title=Text("ОТПРАВИТЬ"),
+                    content=self.scroll_container,
+                    actions=[
+                        TextButton("Отмена", on_click=lambda e: self.page.close_banner()),
+                        TextButton("Отправить", on_click=lambda e: self.create_excel_file(value, self.choice_types.value)),
+                    ]
+                )
+            )
+
+    def create_excel_file(self, group, types):
+        # Извлечение данных из базы данных
+        names = self.teacher.get_list_name(self.db.get_info_select_from("name", f"group{group}"))
+        dates = list(set(self.teacher.get_list_name(
+            self.db.get_info_select_from("dates", f"date_{group} WHERE type='{types}'"))))
+        dates.sort()  # Сортировка дат
+
+        if types != "practice":
+            data = self.db.get_info_select_from("name, date, value", f"statement_{types}{group}")
+            # Преобразование data в удобный формат
+            data_dict = {(item[0], item[1]): item[2] for item in data}
+        else:
+            data = self.db.get_info_select_from("name, date, value, subgroup", f"statement_{types}{group}")
+            # Преобразование data в удобный формат
+            data_dict = {(item[0], item[1]): f"{item[2]}|{item[3]}" for item in data}
+
+        # Создание Excel-файла
+        filename = f"statement_{group}_{types}.xlsx"
+        filepath = os.path.join(os.getcwd(), "file", filename)
+        workbook = xlsxwriter.Workbook(filepath)
+        worksheet = workbook.add_worksheet()
+
+        # Заполнение заголовка с датами (строка 0, начиная со столбца 1)
+        for col, date in enumerate(dates, start=1):
+            worksheet.write(0, col, date)
+
+        # Заполнение имен (столбец 0, начиная со строки 1)
+        for row, name in enumerate(names, start=1):
+            worksheet.write(row, 0, name)
+
+        # Заполнение значений для каждой строки и каждого столбца
+        for row, name in enumerate(names, start=1):
+            for col, date in enumerate(dates, start=1):
+                value = data_dict.get((name, date), None)
+                if value is not None:
+                    worksheet.write(row, col, value)
+
+        workbook.close()
+        print()
+        # Отправка файла по электронной почте с динамическим путем
+        self.mail.send_email("Ведомость", self.comment.value, self.mail_con.value, filepath)
 
 
 class Settings(Numbers):
@@ -346,16 +706,18 @@ class Settings(Numbers):
                         width=1500,
                         height=130,
                         alignment=alignment.center,
-                        bgcolor="blue",
-                        on_click=lambda e: self.show_content()
+                        on_click=lambda e: self.show_content(),
+                        border_radius=15,
+                        border=border.all(5, "green")
                     ),
                     Container(
                         Text("ТАБЛИЦА", size=70, style=TextStyle(letter_spacing=30)),
                         width=1500,
                         height=130,
                         alignment=alignment.center,
-                        bgcolor="blue",
-                        on_click=lambda e: self.show_content_table()
+                        on_click=lambda e: self.show_content_table(),
+                        border_radius=15,
+                        border=border.all(5, "green")
                     ),
             ], spacing=40)
         )
@@ -372,21 +734,21 @@ class Settings(Numbers):
             RadioGroup(
                 value=self.settings_value[0],
                 content=Row([
-                    Radio(value="0", label="1"),
+                    Radio(value="0", label="1", tooltip="Комбобокс"),
                 ]),
                 on_change=handle_radio_change
             ),
             RadioGroup(
                 value=self.settings_value[0],
                 content=Row([
-                    Radio(value="1", label="2"),
+                    Radio(value="1", label="2", tooltip="Прокрутка"),
                 ]),
                 on_change=handle_radio_change
             ),
             RadioGroup(
                 value=self.settings_value[0],
                 content=Row([
-                    Radio(value="2", label="3"),
+                    Radio(value="2", label="3", tooltip="Контейнеры"),
                 ]),
                 on_change=handle_radio_change
             )
@@ -421,14 +783,14 @@ class Settings(Numbers):
             RadioGroup(
                 value=self.settings_value[1],
                 content=Row([
-                    Radio(value="0", label="1"),
+                    Radio(value="0", label="1", tooltip="Диалоговое окно"),
                 ]),
                 on_change=handle_radio_change
             ),
             RadioGroup(
                 value=self.settings_value[1],
                 content=Row([
-                    Radio(value="1", label="2"),
+                    Radio(value="1", label="2", tooltip="При помощи пробелов"),
                 ]),
                 on_change=handle_radio_change
             ),
@@ -469,73 +831,6 @@ class Settings(Numbers):
         self.page.close_banner()
 
 
-class Mail:
-    def __init__(self, pageN, id, db, group):
-        self.page = pageN
-        self.db = db
-        self.group = group
-        self.id = id
-
-        self.page.clean()
-        self.page.horizontal_alignment = CrossAxisAlignment.CENTER
-        self.page.vertical_alignment = MainAxisAlignment.CENTER
-        self.page.update()
-
-        self.teacher = Teachers()
-        self.scroll_container = ListView(width=700, height=500)
-        self.name = TextField(value=f"{self.teacher.get_str(self.db.get_info_select_from("name", f"teachers WHERE rowid='{self.id}'"))}", width=320, text_align=TextAlign.LEFT, label="От кого", height=100)
-        self.mail = TextField(value="", width=320, text_align=TextAlign.LEFT, label="Почта(получателя)", height=100)
-        self.comment = TextField(value="", width=320, text_align=TextAlign.LEFT, label="Комментарий(необязательно)", height=100)
-
-        self.choice_types = RadioGroup(
-            content=Row([
-                Radio(value="practice", label="Практика"),
-                Radio(value="lecture", label="Лекция"),
-                Radio(value="consultation", label="Консультация"),
-            ]),
-            value="practice",
-        )
-
-        self.choice_date = RadioGroup(
-            content=Column([
-                Radio(value="all", label="Все даты"),
-                Radio(value="some", label="Некоторые даты"),
-            ]),
-            value="all",
-        )
-
-        self.scroll_container.controls.append(
-            Column([
-                self.name,
-                self.mail,
-                self.comment,
-                self.choice_types,
-                self.choice_date
-            ])
-        )
-
-        self.page.add(
-            Container(Column([
-                self.scroll_container,
-                Row([
-                    ElevatedButton(
-                        text="Назад",
-                        icon=icons.EXIT_TO_APP,
-                        on_click=lambda _: Numbers(self.page, self.id, self.db)
-                    ),
-                    ElevatedButton(
-                        text="Отправить",
-                        icon=icons.FILE_OPEN,
-                        on_click=self.send_mail
-                    ),
-                ], alignment=alignment.center)
-            ]), alignment=alignment.center, width=700, height=900, padding=200),
-        )
-
-    def send_mail(self):
-        pass
-
-
 class Info:
     def __init__(self, pageN, id, db, value, today_date):
         self.page = pageN
@@ -554,7 +849,7 @@ class Info:
 
         self.grade_texts = [".", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
         self.performance_texts = [".", "1", "2", "1y", "2y"]
-        self.statistics = ["Имя", "Средний бал",
+        self.statistics = ["Номер", "Имя", "Средний бал",
                            "Успеваемость на практике(был/всего)",
                            "Успеваемость на лекции(был/всего)", "Успеваемость на консультации(был/всего)"]
 
@@ -568,6 +863,14 @@ class Info:
         self.list_subgroup_1 = None
         self.list_subgroup_2 = None
         self.list_subgroup_3 = None
+
+        # всплывающее окна
+
+        self.save = SnackBar(Text(f"Успешно", size=20))
+
+        self.error_date = SnackBar(Text(f"Такая дата уже есть", size=20))
+
+        self.banner = SnackBar(Text(f"Сперва добавьте дату", size=20))
 
         self.calculation_lecture()
         self.calculation_consultation()
@@ -635,6 +938,7 @@ class Card(Info):
         self.db.delete_student(group, condition)
         self.scroll_card.controls.clear()
         self.create_card()
+        self.page.close_banner()
         self.page.update()
 
     def create_card(self):
@@ -651,12 +955,36 @@ class Card(Info):
                                 icon=icons.MORE_VERT,
                                 items=[
                                     PopupMenuItem(text="Аккаунт",
-                                                  on_click=lambda _, name=self.list_name[i]: print(name)),
+                                                  on_click=lambda _, name=self.list_name[i]:
+                                                  AccountStudent(self.page, self.db, self.value, self.id, name, 1)),
                                     PopupMenuItem(text="Изменить",
                                                   on_click=lambda _, name=self.list_name[i]:
                                                   EditStudent(self.page, self.db, name, self.value, self.id)),
                                     PopupMenuItem(text="Удалить", on_click=lambda _, name=self.list_name[i]:
-                                    self.delete_student(f"{self.value}", f"name='{name}'")),
+                                    self.page.show_banner(
+                                        AlertDialog(
+                                            title=Text("Подтверждение", size=40),
+                                            content=Container(
+                                                content=Column(
+                                                    [
+                                                        Text("Вы точно уверены, что хотите удалить?", size=20)
+                                                    ]
+                                                ),
+                                                height=50  # Задайте желаемую ширину здесь
+                                            ),
+                                            actions=[
+                                                TextButton(
+                                                    content=Text("Отмена", size=20),
+                                                    on_click=lambda _: self.page.close_banner()
+                                                ),
+                                                TextButton(
+                                                    content=Text("Да", size=20),
+                                                    on_click=lambda _: self.delete_student(f"{self.value}", f"name='{name}'")
+                                                ),
+                                            ],
+                                        )
+                                    )
+                                    ),
                                 ],
                                 icon_size=35
                             ),
@@ -675,12 +1003,17 @@ class Table(Card):
     def __init__(self, pageN, id, db, value, today_date):
         super().__init__(pageN, id, db, value, today_date)
 
+        self.sort_asc = True
         self.scroll_table_date_lecture = ListView(width=1700, height=60)
         self.scroll_table_lecture = ListView(expand=1, width=1700)
         self.scroll_table_date_consultation = ListView(width=1700, height=60, visible=False)
         self.scroll_table_consultation = ListView(expand=1, width=1700, visible=False)
         self.scroll_table_practice = ListView(expand=1, spacing=10, padding=15, width=1700, visible=False)
 
+        self.now_dates_lecture = self.date_lecture
+        self.now_dates_consultation = self.date_consultation
+        self.now_dates_practice_1 = self.date_practice_1
+        self.now_dates_practice_2 = self.date_practice_2
         self.mode = None
         self.focus_row = 0
         self.focus_col = 1
@@ -709,32 +1042,6 @@ class Table(Card):
         self.kol_practice_1 = 0
         self.kol_practice_2 = 0
 
-        # всплывающее окна
-        self.cancel = AlertDialog(
-            title=Text("Данные не были обновлены", size=50, color="red"),
-        )
-
-        self.save = AlertDialog(
-            title=Text("Успешно", size=50, color="green"),
-        )
-
-        self.error_date = AlertDialog(
-            title=Text("Такая дата уже есть", size=50, color="red"),
-        )
-
-        self.banner = Banner(
-            bgcolor=colors.AMBER_100,
-            leading=Icon(icons.WARNING_AMBER_ROUNDED, color=colors.AMBER, size=40),
-            content=Text(
-                value="Сперва добавьте дату",
-                color=colors.BLACK,
-                size=35
-            ),
-            actions=[
-                TextButton(text="Закрыть", on_click=lambda e: self.page.close_banner()),
-            ],
-        )
-
         self.add_object_lecture_consultation()
         self.add_object_practice()
 
@@ -747,7 +1054,7 @@ class Table(Card):
         columns_table_lecture_date = [DataColumn(Text(f"{list_date[i]}", color="black", size=25)) for i in range(6)]
 
         table_lecture_date = DataTable(
-            width=1400,
+            width=1279,
             bgcolor="white",
             border=border.all(2, "#00FF7F"),
             border_radius=5,
@@ -793,28 +1100,39 @@ class Table(Card):
                            on_click=lambda e: self.move_arrow("right", self.date_lecture, "lecture", "None", "None")
                            ),
                 table_lecture_date,
-            ]), padding=padding.only(-6, 0, 0, 0)
+            ]), padding=padding.only(120, 0, 0, 0)
         )
         self.scroll_table_date_lecture.controls.append(container_table_lecture_date)
-        # таблица основная ЛЕКЦИЯ
+
+        # Таблица основная ЛЕКЦИЯ
         self.columns_table_lecture = [
-            DataColumn(Text("Имя" if i == 0 else f"{list_week[i - 1]}", color="black", size=15)) for i in range(7)]
-        self.row_table_lecture = [  # i - строки | j - столбцы
+            DataColumn(Text("Номер", color="black", size=15)),
+            DataColumn(Text("Имя", color="black", size=15), on_sort=lambda _: self.sort_by_name("lecture", list_name, list_week, list_date, "None", "None"))
+        ]
+        for i in range(2, 8):
+            self.columns_table_lecture.append(DataColumn(Text(f"{list_week[i - 2]}", color="black", size=15)))
+
+        self.row_table_lecture = [
             DataRow([
                 DataCell(
                     Container(
                         content=TextButton(
-                            content=Text(f"{list_name[i]}" if j == 0 else f"{self.statement.check_which_value(
-                                self.db.get_info_join(f"{list_name[i]}", f"{list_date[j - 1]}",
-                                                  f"{self.value}", "lecture"))}", size=20, color="black"),
-                            on_click=lambda e, n=j, a=i: self.put_grade_student(list_date[n - 1], list_name[a], "lecture", a, n, 3) if n != 0 else None,
-                            autofocus=(i == self.focus_row and j == self.focus_col), width=190 if j == 0 else 150, height=40,
-                            on_long_press=lambda e, n=j, row_index=i: self.handle_row_double_tap(row_index, "lecture", "None") if n == 0 else None),
-                        width=205 if j == 0 else None,
+                            content=Text(
+                                f"{i + 1}" if j == 0 else f"{list_name[i]}" if j == 1 else f"{self.statement.check_which_value(
+                                    self.db.get_info_join(f"{list_name[i]}", f"{list_date[j - 2]}",
+                                                          f"{self.value}", "lecture"))}", size=20, color="black"),
+                            on_click=lambda e, n=j, a=i: self.put_grade_student(list_date[n - 2], list_name[a],
+                                                                                "lecture", a, n,
+                                                                                3) if n != 1 and n != 0 else None,
+                            autofocus=(i == self.focus_row and j == self.focus_col),
+                            width=100 if j == 0 else 190 if j == 1 else 150, height=40,
+                            on_long_press=lambda e, n=j, row_index=i: self.handle_row_double_tap(row_index, "lecture",
+                                                                                                 "None") if n == 1 else None),
+                        width=100 if j == 0 else 205 if j == 1 else None,
                         alignment=alignment.center
                     ),
                 )
-                for j in range(7)
+                for j in range(8)
             ], )
             for i in range(len(list_name))
         ]
@@ -831,13 +1149,40 @@ class Table(Card):
 
         self.scroll_table_lecture.controls.append(table_lecture)
 
+    def sort_by_name(self, types, list_name, list_week, list_date, list_date_2, list_name_2):
+        """ Сортировка по столбцу Имя """
+        list_name.sort(reverse=not self.sort_asc)
+        self.sort_asc = not self.sort_asc
+
+        if types == "lecture":
+            self.scroll_table_lecture.controls.clear()
+            self.scroll_table_date_lecture.controls.clear()
+
+            self.calculation_lecture()
+
+            self.create_table_lecture(list_date, list_week, list_name)
+        elif types == "consultation":
+            self.scroll_table_consultation.controls.clear()
+            self.scroll_table_date_consultation.controls.clear()
+
+            self.calculation_consultation()
+
+            self.create_table_consultation(list_date, list_week, list_name)
+        else:
+            self.scroll_table_practice.controls.clear()
+
+            self.calculation_practice()
+            list_name_2.sort(reverse=not self.sort_asc)
+            self.create_table_practice(list_date, list_date_2, list_name, list_name_2)
+        self.page.update()
+
     def create_table_consultation(self, list_date, list_week, list_name):
         # Таблица с датами КОНСУЛЬТАЦИЯ
         column_table_consultation_date = [DataColumn(Text(f"{list_date[i]}", color="black", size=25))
                                           for i in range(6)]
 
         table_consultation_date = DataTable(
-            width=1400,
+            width=1278,
             bgcolor="white",
             border=border.all(2, "#061CF9"),
             border_radius=5,
@@ -885,32 +1230,36 @@ class Table(Card):
                            on_click=lambda e: self.move_arrow("right", self.date_consultation, "consultation", "None", "None")
                            ),
                 table_consultation_date
-            ]), padding=padding.only(-10, 0, 0, 0),
+            ]), padding=padding.only(122, 0, 0, 0),
         )
 
         self.scroll_table_date_consultation.controls.append(container_table_consultation_date)
 
         # таблица основная КОНСУЛЬТАЦИЯ
         self.column_consultation = [
-            DataColumn(Text("Имя" if i == 0 else f"{list_week[i - 1]}", color="black", size=15)) for i
-            in range(7)]
+            DataColumn(Text("Номер", color="black", size=15)),
+            DataColumn(Text("Имя", color="black", size=15), on_sort=lambda _: self.sort_by_name("consultation", list_name, list_week, list_date, "None", "None"))
+        ]
+        for i in range(2, 8):
+            self.column_consultation.append(DataColumn(Text(f"{list_week[i - 2]}", color="black", size=15)))
         self.rows_consultation = [  # i - строки | j - столбцы
             DataRow([
                 DataCell(
                     Container(
-                        content=TextButton(content=Text(f"{list_name[i]}" if j == 0 else f"{self.statement.check_which_value(
-                            self.db.get_info_join(f"{list_name[i]}", f"{list_date[j - 1]}",
-                                                  f"{self.value}", "consultation"))}", size=20, color="black")
-                                           , on_click=lambda e, n=j, a=i:
-                    self.put_grade_student(list_date[n - 1], list_name[a], "consultation", a, n, 3)
-                    if n != 0 else None, autofocus=(i == self.focus_row and j == self.focus_col), width=190 if j == 0 else 150, height=40),
-                        width=205 if j == 0 else None, alignment=alignment.center,
-                        on_long_press=lambda e, n=j, row_index=i: self.handle_row_double_tap(row_index, "consultation", "None") if n == 0 else None
+                        content=TextButton(
+                            content=Text(f"{i+1}" if j == 0 else f"{list_name[i]}" if j == 1 else f"{self.statement.check_which_value(
+                                self.db.get_info_join(f"{list_name[i]}", f"{list_date[j - 2]}",
+                                                  f"{self.value}", "consultation"))}", size=20, color="black"),
+                            on_click=lambda e, n=j, a=i: self.put_grade_student(list_date[n - 2], list_name[a], "consultation", a, n, 3) if n != 1 and n != 0 else None,
+                            autofocus=(i == self.focus_row and j == self.focus_col), width=100 if j == 0 else 190 if j == 1 else 150, height=40,
+                            on_long_press=lambda e, n=j, row_index=i: self.handle_row_double_tap(row_index, "consultation", "None") if n == 1 else None),
+                        width=100 if j == 0 else 205 if j == 1 else None,
+                        alignment=alignment.center
                     ),
                 )
-                for j in range(7)
+                for j in range(8)
             ])
-            for i in range(len(self.list_name))
+            for i in range(len(list_name))
         ]
 
         table_consultation = DataTable(
@@ -1008,26 +1357,29 @@ class Table(Card):
 
         # таблица 1
         self.column_practice = [
-            DataColumn(Text("Имя" if i == 0 else f"{list_date_1[i - 1]}", color="black", size=20)) for i in
-            range(7)]
+            DataColumn(Text("Номер", color="black", size=15)),
+            DataColumn(Text("Имя", color="black", size=15), on_sort=lambda _: self.sort_by_name("practice", list_subgroup_1, "None", list_date_1, list_date_2, list_subgroup_2))
+        ]
+        for i in range(2, 8):
+            self.column_practice.append(DataColumn(Text(f"{list_date_1[i - 2]}", color="black", size=15)))
 
         self.rows_practice = [  # i - строки | j - столбцы
             DataRow([
                 DataCell(
                     Container(
                         content=TextButton(
-                            content=Text(f"{list_subgroup_1[i]}" if j == 0 else f"{self.statement.check_which_value_practice(
+                            content=Text(f"{i+1}" if j == 0 else f"{list_subgroup_1[i]}" if j == 1 else f"{self.statement.check_which_value_practice(
                                 self.db.get_info_select_from("subgroup, value", 
                                                              f"statement_practice{self.value} WHERE "
                                                                                 f"name='{list_subgroup_1[i]}'"
-                                                                                f" AND date='{list_date_1[j - 1]}'"))}",
+                                                                                f" AND date='{list_date_1[j - 2]}'"))}",
                                          size=20, color="black"),
-                            on_click=lambda e, n=j, a=i: self.put_grade_student(list_date_1[n - 1], list_subgroup_1[a], "practice", a, n, 1) if n != 0 else None,
-                            autofocus=(i == self.focus_row and j == self.focus_col) if self.choice_focus_practice == 1 else None, width=150 if j != 0 else 190, height=40,
-                            on_long_press=lambda e, n=j, row_index=i: self.handle_row_double_tap(row_index, "practice", "1") if n == 0 else None),
-                        width=205 if j == 0 else None, alignment=alignment.center),
+                            on_click=lambda e, n=j, a=i: self.put_grade_student(list_date_1[n - 2], list_subgroup_1[a], "practice", a, n, 1) if n != 0 and n != 1 else None,
+                            autofocus=(i == self.focus_row and j == self.focus_col) if self.choice_focus_practice == 1 else None, width=100 if j == 0 else 190 if j == 1 else 150, height=40,
+                            on_long_press=lambda e, n=j, row_index=i: self.handle_row_double_tap(row_index, "practice", "1") if n == 1 else None),
+                        width=100 if j == 0 else 205 if j == 1 else None, alignment=alignment.center),
                 )
-                for j in range(7)
+                for j in range(8)
             ])
             for i in range(len(list_subgroup_1))
         ]
@@ -1044,25 +1396,28 @@ class Table(Card):
 
         # таблица 2
         self.column_practice_2 = [
-            DataColumn(Text("Имя" if i == 0 else f"{list_date_2[i - 1]}", color="black", size=20)) for i in
-            range(7)]
+            DataColumn(Text("Номер", color="black", size=15)),
+            DataColumn(Text("Имя", color="black", size=15), on_sort=lambda _: self.sort_by_name("practice", list_subgroup_1, "None", list_date_1, list_date_2, list_subgroup_2))
+        ]
+        for i in range(2, 8):
+            self.column_practice_2.append(DataColumn(Text(f"{list_date_2[i - 2]}", color="black", size=15)))
         self.rows_practice_2 = [  # i - строки | j - столбцы
             DataRow([
                 DataCell(
                     Container(
                         content=TextButton(
-                            content=Text(f"{list_subgroup_2[i]}" if j == 0 else f"{self.statement.check_which_value_practice(
+                            content=Text(f"{i+1}" if j == 0 else f"{list_subgroup_2[i]}" if j == 1 else f"{self.statement.check_which_value_practice(
                                 self.db.get_info_select_from("subgroup, value", 
                                                              f"statement_practice{self.value} WHERE "
                                                                                 f"name='{list_subgroup_2[i]}'"
-                                                                                f" AND date='{list_date_2[j - 1]}'"))}",
+                                                                                f" AND date='{list_date_2[j - 2]}'"))}",
                                          size=20, color="black"),
-                            on_click=lambda e, n=j, a=i: self.put_grade_student(list_date_2[n - 1], list_subgroup_2[a], "practice", a, n, 2) if n != 0 else None,
-                            autofocus=(i == self.focus_row and j == self.focus_col), width=150 if j != 0 else 190, height=40,
-                            on_long_press=lambda e, n=j, row_index=i: self.handle_row_double_tap(row_index, "practice", "2") if n == 0 else None,),
-                        width=210 if j == 0 else None, alignment=alignment.center),
+                            on_click=lambda e, n=j, a=i: self.put_grade_student(list_date_2[n - 2], list_subgroup_2[a], "practice", a, n, 2) if n != 0 and n != 1 else None,
+                            autofocus=(i == self.focus_row and j == self.focus_col), width=100 if j == 0 else 190 if j == 1 else 150, height=40,
+                            on_long_press=lambda e, n=j, row_index=i: self.handle_row_double_tap(row_index, "practice", "2") if n == 1 else None,),
+                        width=100 if j == 0 else 205 if j == 1 else None, alignment=alignment.center),
                 )
-                for j in range(7)
+                for j in range(8)
             ])
             for i in range(len(list_subgroup_2))
         ]
@@ -1139,7 +1494,7 @@ class Table(Card):
                                                    day=int(f"{date[0]}{date[1]}")),
                     last_date=datetime.datetime(year=self.now.year, month=self.now.month, day=self.now.day),
                     on_change=lambda e: update_date(e, date, types, subgroup),
-                    on_dismiss=lambda e: self.page.show_banner(self.cancel)
+                    on_dismiss=lambda e: self.page.close_banner()
                 )
             ),
             self.page.update()
@@ -1187,7 +1542,7 @@ class Table(Card):
             else:
                 self.db.delete_teachers(f"statement_{types}{self.value}",
                                         f"date='{data}'")
-            self.page.show_banner(self.save)
+            self.page.close_banner()
             self.update_table(f"{types}")
 
         con = Container(content=Column(controls=[]), alignment=alignment.center)
@@ -1197,7 +1552,29 @@ class Table(Card):
                 con.content.controls.append(
                     TextButton(
                         content=Text(f"{type_list[i]}", size=30),
-                        on_click=lambda e, a=i: delete(e, types, subgroup, type_list[a])
+                        on_click=lambda e, a=i: self.page.show_banner(
+    AlertDialog(
+        title=Text("Подтверждение", size=40),
+        content=Container(
+            content=Column(
+                [
+                    Text("Вы точно уверены, что хотите удалить дату?", size=20)
+                ]
+            ),
+            height=50  # Задайте желаемую ширину здесь
+        ),
+        actions=[
+            TextButton(
+                content=Text("Отмена", size=20),
+                on_click=lambda _: self.page.close_banner()
+            ),
+            TextButton(
+                content=Text("Да", size=20),
+                on_click=lambda _: delete(e, types, subgroup, type_list[a])
+            ),
+        ],
+    )
+)
                     )
                 )
 
@@ -1212,11 +1589,30 @@ class Table(Card):
                 actions=[
                     TextButton(
                         content=Text("Отмена", size=20),
+                        on_click=lambda _: self.page.close_banner()
                     ),
 
                 ],
             )
         )
+
+    def update_table_click(self, types, list_date, list_date_2):
+        new_week_list = self.statement.get_list_week(list_date)
+        if types == "lecture":
+            self.scroll_table_lecture.controls.clear()
+            self.scroll_table_date_lecture.controls.clear()
+
+            self.create_table_lecture(list_date, new_week_list, self.list_name)
+        elif types == "consultation":
+            self.scroll_table_consultation.controls.clear()
+            self.scroll_table_date_consultation.controls.clear()
+
+            self.create_table_consultation(list_date, new_week_list, self.list_name)
+        else:
+            self.scroll_table_practice.controls.clear()
+
+            self.create_table_practice(list_date, list_date_2, self.list_subgroup_1, self.list_subgroup_2)
+        self.page.update()
 
     def update_table(self, types):
 
@@ -1445,7 +1841,12 @@ class Table(Card):
                                                                               f"'{self.radio_group_practice_grade.value}'")
 
         self.page.close_banner()
-        self.update_table(f"{types}")
+        if types == "lecture":
+            self.update_table_click(f"{types}", self.now_dates_lecture, "None")
+        elif types == "consultation":
+            self.update_table_click(f"{types}", self.now_dates_consultation, "None")
+        else:
+            self.update_table_click(f"{types}", self.now_dates_practice_1, self.now_dates_practice_2)
 
     def show_window_save_2(self, types, name, date, value_performance, value_grades):
         self.db.delete_info_statement(f"{name}", f"{date}", f"{self.value}", f"{types}")
@@ -1501,41 +1902,49 @@ class Table(Card):
             if types == "lecture":
                 new_date_list, new_const_list = check_data_left(self.kol_lecture, list_type)
                 self.kol_lecture = new_const_list
+                self.now_dates_lecture = new_date_list
                 self.update_table_parameter(new_date_list, types, "None")
             elif types == "consultation":
                 new_date_list, new_const_list = check_data_left(self.kol_consultation, list_type)
                 self.kol_consultation = new_const_list
+                self.now_dates_consultation = new_date_list
                 self.update_table_parameter(new_date_list, types, "None")
             else:
                 if subgroup == "1":
                     new_date_list, new_const_list = check_data_left(self.kol_practice_1, self.date_practice_1)
                     self.kol_practice_1 = new_const_list
+                    self.now_dates_practice_1 = new_date_list
                     self.update_table_parameter(new_date_list, types, list_type_2)
                 else:
                     new_date_list, new_const_list = check_data_left(self.kol_practice_2, self.date_practice_2)
                     self.kol_practice_2 = new_const_list
+                    self.now_dates_practice_2 = new_date_list
                     self.update_table_parameter(list_type, types, new_date_list)
         else:
             if types == "lecture":
                 new_date_list, new_const_list = check_data_right(self.kol_lecture, list_type)
                 if new_const_list is not None:
                     self.kol_lecture = new_const_list
+                    self.now_dates_lecture = new_date_list
                     self.update_table_parameter(new_date_list, types, "None")
             elif types == "consultation":
                 new_date_list, new_const_list = check_data_right(self.kol_consultation, list_type)
                 if new_const_list is not None:
                     self.kol_consultation = new_const_list
+                    self.now_dates_consultation = new_date_list
                     self.update_table_parameter(new_date_list, types, "None")
             else:
                 if subgroup == "1":
                     new_date_list, new_const_list = check_data_right(self.kol_practice_1, self.date_practice_1)
                     if new_const_list is not None:
                         self.kol_practice_1 = new_const_list
+                        self.now_dates_practice_1 = new_date_list
                         self.update_table_parameter(new_date_list, types, list_type_2)
                 else:
                     new_date_list, new_const_list = check_data_right(self.kol_practice_2, self.date_practice_2)
                     if new_const_list is not None:
                         self.kol_practice_2 = new_const_list
+                        self.now_dates_practice_2 = new_date_list
                         self.update_table_parameter(list_type, types, new_date_list)
 
     def add_object_lecture_consultation(self):
@@ -1558,7 +1967,7 @@ class Table(Card):
             ),
             actions=[
                 TextButton("Сохранить", on_click=lambda e: self.show_window_save(e, "lecture")),
-                TextButton("Отмена", on_click=lambda e: self.page.show_banner(self.cancel))
+                TextButton("Отмена", on_click=lambda e: self.page.close_banner())
 
             ],
         )
@@ -1571,7 +1980,7 @@ class Table(Card):
             ),
             actions=[
                 TextButton("Сохранить", on_click=lambda e: self.show_window_save(e, "consultation")),
-                TextButton("Отмена", on_click=lambda e: self.page.show_banner(self.cancel))
+                TextButton("Отмена", on_click=lambda e: self.page.close_banner())
 
             ],
         )
@@ -1618,7 +2027,7 @@ class Table(Card):
             ),
             actions=[
                 TextButton("Сохранить", on_click=lambda e: self.show_window_save(e, "practice")),
-                TextButton("Отмена", on_click=lambda e: self.page.show_banner(self.cancel))
+                TextButton("Отмена", on_click=lambda _: self.page.close_banner())
 
             ],
         )
@@ -1629,40 +2038,40 @@ class Statistics(Table):
         super().__init__(pageN, id, db, value, today_date)
 
         self.scroll_table_statistics = ListView(expand=1, width=1700, visible=False)
-
+        self.sort_st = True
         self.create_table_statistics(self.list_name)
 
     def create_table_statistics(self, list_name):
         self.columns_table_statistics = [
-            DataColumn(Text(f"{self.statistics[i]}", color="black", size=15)) for i in range(5)]
+            DataColumn(Text(f"{self.statistics[i]}", color="black", size=15), on_sort=lambda _: self.sort_by_name_statistics(list_name)) for i in range(6)]
         self.rows_table_statistics = [  # i - строки | j - столбцы
             DataRow([
                 DataCell(
                     Container(
                         content=TextButton(
-                            content=Text(f"{list_name[i]}" if j == 0 else f"{self.student.get_statistics_grade(
+                            content=Text(f"{i+1}" if j == 0 else f"{list_name[i]}" if j == 1 else f"{self.student.get_statistics_grade(
                                 self.db.get_info_select_from("subgroup", 
                                                              f"statement_practice{self.value} WHERE name='{list_name[i]}'"
                                                              ))}"
-                            if j == 1 else f"{self.student.get_statistics_progress(
+                            if j == 2 else f"{self.student.get_statistics_progress(
                                 self.db.get_info_select_from("value", 
                                                              f"statement_practice{self.value} WHERE name='{list_name[i]}'"
                                                              ),
                                 self.date_practice_1 if list_name[i] in self.list_subgroup_1 else self.date_practice_2 if list_name[i] in self.list_subgroup_2 else None)}"
-                            if j == 2 else f"{self.student.get_statistics_progress(
+                            if j == 3 else f"{self.student.get_statistics_progress(
                                 self.db.get_info_select_from("value", 
                                                              f"statement_lecture{self.value} WHERE name='{list_name[i]}'"
                                                              ), 
                                 self.date_lecture)}"
-                            if j == 3 else f"{self.student.get_statistics_progress(
+                            if j == 4 else f"{self.student.get_statistics_progress(
                                 self.db.get_info_select_from("value", 
                                                              f"statement_consultation{self.value} WHERE name='{list_name[i]}'"
                                                              ), 
                                 self.date_consultation)}",
                                          size=20, color="black"),
-                            width=190 if j == 0 else 190, height=40,
-                            on_long_press=lambda e, n=j, row_index=i: self.handle_row_double_tap(row_index, "statistics", "None") if n == 0 else None),
-                        width=205 if j == 0 else None,
+                            width=100 if j == 0 else 190 if j == 1 else 190, height=40,
+                            on_long_press=lambda e, n=j, row_index=i: self.handle_row_double_tap(row_index, "statistics", "None") if n == 1 else None),
+                        width=100 if j == 0 else None,
                         alignment=alignment.center
                     ),
                 )
@@ -1681,6 +2090,14 @@ class Statistics(Table):
             rows=self.rows_table_statistics,
         )
         self.scroll_table_statistics.controls.append(table_statistics)
+
+    def sort_by_name_statistics(self, list_name):
+        list_name.sort(reverse=not self.sort_st)
+        self.sort_st = not self.sort_st
+
+        self.scroll_table_statistics.controls.clear()
+        self.create_table_statistics(list_name)
+        self.page.update()
 
 
 class Visible(Statistics):
@@ -1710,7 +2127,7 @@ class Visible(Statistics):
         self.page.add(
             Row(
                 [
-                    IconButton(icons.ARROW_BACK, on_click=self.click_arrow, tooltip="Назад"),
+                    IconButton(icons.ARROW_BACK, on_click=lambda _: Numbers(self.page, self.id, self.db), tooltip="Назад"),
                     CupertinoSlidingSegmentedButton(
                         selected_index=1,
                         thumb_color=colors.BLUE_400,
@@ -1722,7 +2139,9 @@ class Visible(Statistics):
                         ],
                         on_change=self.on_segment_change,
                     ),
-                    IconButton(icons.UPDATE, on_click=lambda _: Visible(self.page, self.id, self.db, self.value, 1), tooltip="Обновить"),
+                    IconButton(icons.REFRESH, on_click=lambda _: Visible(self.page, self.id, self.db, self.value, 1), tooltip="Обновить"),
+                    IconButton(icons.MENU_BOOK_ROUNDED, on_click=lambda _: self.guide(),
+                               tooltip="Руководство"),
                 ], alignment=MainAxisAlignment.CENTER,
             ),
         )
@@ -1820,10 +2239,33 @@ class Visible(Statistics):
             self.scroll_table_statistics.visible = True
         self.page.update()
 
-# стрелка назад
-    def click_arrow(self, e):
-        self.page.clean()
-        Numbers(self.page, self.id, self.db)
+    def guide(self):
+        scroll_container = ListView(width=900, height=900)
+        scroll_container.controls.append(
+            Container(
+                Column([
+                    Row([
+                        Image(src="img/guide_1.png"),
+                        Text("Можно долгим нажатием на имя\nвыделить поле", size=20)
+                    ]),
+                    Text("Если какие-то данные в таблице не обновились, то нажмите кнопку 'Обновить'", size=20),
+                    Text("В настройках можно изменить способ выставление оценок", size=20),
+                    Row([
+                        Image(src="img/guide_2.png"),
+                        Text("Можно сортировать нажав на колонку (с датами не работает)", size=20)
+                    ]),
+                ])
+            )
+        )
+        self.page.show_banner(
+            AlertDialog(
+                title=Text("Руководство"),
+                content=scroll_container,
+                actions=[
+                    TextButton("Понятно", on_click=self.page.close_banner())
+                ]
+            )
+        )
 
 
 class Subgroup(Visible):
@@ -1945,7 +2387,7 @@ class Admin:
                         padding=padding.symmetric(0, 15),
                         controls=[
                             Text("ПРЕПОДАВАТЕЛИ", size=25),
-                            Text("УЧЕНИКИ", size=25),
+                            Text("ГРУППЫ", size=25),
                         ],
                         on_change=self.on_segment_change,
                     ),
@@ -1975,7 +2417,31 @@ class Admin:
                                                   self.transition_edit(name)),
                                     PopupMenuItem(text="Удалить",
                                                   on_click=lambda _, name=self.list_teachers[i + 1]:
-                                                  self.delete_teacher("teachers", f"name='{name}'")),
+                                                  self.page.show_banner(
+                                                      AlertDialog(
+                                                          title=Text("Подтверждение", size=40),
+                                                          content=Container(
+                                                              content=Column(
+                                                                  [
+                                                                      Text("Вы точно уверены, что хотите удалить?",
+                                                                           size=20)
+                                                                  ]
+                                                              ),
+                                                              height=50  # Задайте желаемую ширину здесь
+                                                          ),
+                                                          actions=[
+                                                              TextButton(
+                                                                  content=Text("Отмена", size=20),
+                                                                  on_click=lambda _: self.page.close_banner()
+                                                              ),
+                                                              TextButton(
+                                                                  content=Text("Да", size=20),
+                                                                  on_click=lambda _: self.delete_teacher("teachers", f"name='{name}'")
+                                                              ),
+                                                          ],
+                                                      )
+                                                  )
+                                                  ),
                                 ],
                                 icon_size=35
                             ),
@@ -2012,7 +2478,31 @@ class Admin:
                                                   self.transition_edit_group(number)),
                                     PopupMenuItem(text="Удалить",
                                                   on_click=lambda _, number=self.list_num_group[i]:
-                                                  self.delete_table(number))
+                                                  self.page.show_banner(
+                                                      AlertDialog(
+                                                          title=Text("Подтверждение", size=40),
+                                                          content=Container(
+                                                              content=Column(
+                                                                  [
+                                                                      Text("Вы точно уверены, что хотите удалить?",
+                                                                           size=20)
+                                                                  ]
+                                                              ),
+                                                              height=50  # Задайте желаемую ширину здесь
+                                                          ),
+                                                          actions=[
+                                                              TextButton(
+                                                                  content=Text("Отмена", size=20),
+                                                                  on_click=lambda _: self.page.close_banner()
+                                                              ),
+                                                              TextButton(
+                                                                  content=Text("Да", size=20),
+                                                                  on_click=lambda _: self.delete_table(number)
+                                                              ),
+                                                          ],
+                                                      )
+                                                  )
+                                                  )
                                 ],
                                 icon_size=35
                             ),
@@ -2052,10 +2542,12 @@ class Admin:
 # пункты
     def delete_table(self, number):
         self.db.drop_table(number)
+        self.page.close_banner()
         Admin(self.page, self.db)
 
     def delete_teacher(self, table, condition):
         self.db.delete_teachers(table, condition)
+        self.page.close_banner()
         Admin(self.page, self.db)
 
     def transition_account(self, name):
@@ -2114,7 +2606,31 @@ class AdminGroup(Admin):
                                                   on_click=lambda _, name=self.list_name[i]: lambda _: EditStudent(self.page, self.db, name, self.group, 0)),
                                     PopupMenuItem(text="Удалить",
                                                   on_click=lambda _, name=self.list_name[i]:
-                                                  self.delete_student(f"{self.group}", f"name='{name}'"))
+                                                  self.page.show_banner(
+                                                      AlertDialog(
+                                                          title=Text("Подтверждение", size=40),
+                                                          content=Container(
+                                                              content=Column(
+                                                                  [
+                                                                      Text("Вы точно уверены, что хотите удалить?",
+                                                                           size=20)
+                                                                  ]
+                                                              ),
+                                                              height=50  # Задайте желаемую ширину здесь
+                                                          ),
+                                                          actions=[
+                                                              TextButton(
+                                                                  content=Text("Отмена", size=20),
+                                                                  on_click=lambda _: self.page.close_banner()
+                                                              ),
+                                                              TextButton(
+                                                                  content=Text("Да", size=20),
+                                                                  on_click=lambda _: self.delete_student(f"{self.group}", f"name='{name}'")
+                                                              ),
+                                                          ],
+                                                      )
+                                                  )
+                                                  )
                                 ],
                                 icon_size=35
                             ),
@@ -2148,6 +2664,7 @@ class AdminGroup(Admin):
 
     def delete_student(self, group, condition):
         self.db.delete_student(group, condition)
+        self.page.close_banner()
         AdminGroup(self.page, self.db, self.group)
 
 
@@ -2271,9 +2788,7 @@ class SettingsAdmin(Admin):
             ),
         )
 
-        self.dlg = AlertDialog(
-            title=Text("УСПЕШНО!", size=50, color="green"),
-        )
+        self.dlg = SnackBar(Text(f"Успешно", size=20))
 
 # кнопка назад
     def click_end(self, e):
@@ -2366,9 +2881,7 @@ class EditTeachers(Admin):
                 ),
             )
 
-        self.dlg = AlertDialog(
-                title=Text("УСПЕШНО!", size=50, color="green"),
-            )
+        self.dlg = SnackBar(Text(f"Успешно", size=20))
 
         self.error = Text('', size=20, color="red")
         self.error = AlertDialog(
@@ -2464,9 +2977,7 @@ class AddGroup(Admin):
             ),
         )
 
-        self.dlg = AlertDialog(
-            title=Text("УСПЕШНО!", size=50, color="green"),
-        )
+        self.dlg = SnackBar(Text(f"Успешно", size=20))
 
         self.error = AlertDialog(
             title=Text("ОШИБКА", size=50, color="red"),
@@ -2493,6 +3004,7 @@ class AddGroup(Admin):
                 self.page.show_banner(self.dlg)
                 self.db.insert_info_values("group_db", self.text_num_group.value)
                 self.db.create_table_group(self.text_num_group.value)
+                self.db.create_table(f"date_{self.text_num_group.value}", "dates text, type text, subgroup text")
                 self.db.create_table_statement(f"{self.text_num_group.value}", "lecture")
                 self.db.create_table_statement(f"{self.text_num_group.value}", "consultation")
                 self.db.create_table_statement_practice(f"{self.text_num_group.value}")
@@ -2561,9 +3073,7 @@ class AddTeachers(Admin):
                 ),
             )
 
-        self.dlg = AlertDialog(
-                title=Text("УСПЕШНО!", size=50, color="green"),
-            )
+        self.dlg = SnackBar(Text(f"Успешно", size=20))
 
         self.error_num = Text('', size=20, color="red")
         self.error = AlertDialog(
@@ -2602,12 +3112,12 @@ class AddTeachers(Admin):
 
                 if kol_right == len(list_num):
                     self.page.show_banner(self.dlg)
-                    self.db.insert_info_values("teachers", f"{self.text_name.value}, "
-                                                           f"{self.text_login.value}, "
-                                                           f"{self.text_password.value}, "
-                                                           f"{self.text_items.value}, "
-                                                           f"{self.text_num_group.value}, "
-                                                           f"'None'")
+                    self.db.insert_info_values("teachers", f"'{self.text_name.value}', "
+                                                           f"'{self.text_login.value}', "
+                                                           f"'{self.text_password.value}', "
+                                                           f"'{self.text_items.value}', "
+                                                           f"'{self.text_num_group.value}', "
+                                                           f"'None', '00', '0'")
                     self.text_name.value = ''
                     self.text_login.value = ''
                     self.text_password.value = ''
@@ -2616,7 +3126,7 @@ class AddTeachers(Admin):
                     self.page.update()
             except:
                 self.error_write_num.value = ("ОШИБКА, в поле Группы нужно записывать через запятую и"
-                                             " с одним пробелом после")
+                                             " с одним пробелом после f{}")
                 self.page.show_banner(self.bs)
 
 
@@ -2665,13 +3175,9 @@ class AddStudent(Admin):
             ),
         )
 
-        self.dlg = AlertDialog(
-            title=Text("УСПЕШНО!", size=50, color="green"),
-        )
+        self.dlg = SnackBar(Text(f"Успешно", size=20))
 
-        self.error = AlertDialog(
-            title=Text("ОШИБКА", size=50, color="red"),
-        )
+        self.error = SnackBar(Text(f"ОШИБКА", size=20))
 
 # кнопка назад
     def click_end(self, e):
@@ -2743,9 +3249,7 @@ class EditGroup(Admin):
                 ),
             )
 
-        self.dlg = AlertDialog(
-                title=Text("УСПЕШНО!", size=50, color="green"),
-            )
+        self.dlg = SnackBar(Text(f"Успешно", size=20))
 
         self.error_write = Text('Должно быть 8 цифр', size=20, color="red")
         self.error = AlertDialog(
@@ -2829,9 +3333,7 @@ class EditStudent(Admin):
             ),
         )
 
-        self.dlg = AlertDialog(
-            title=Text("УСПЕШНО!", size=50, color="green"),
-        )
+        self.dlg = SnackBar(Text(f"Успешно", size=20))
 
 # кнопка назад
     def click_end(self, e):
@@ -2918,9 +3420,257 @@ class ExcelFile:
             Visible(self.page, self.id, self.db, self.group, 1)
 
 
+class AccountStudent(Info):
+    def __init__(self, pageN, db, value, id, name, today_date):
+        super().__init__(pageN, id, db, value, today_date)
+        self.id = id
+        self.name = name
+        self.student = Student()
+        self.statement = Statement()
+        self.teacher = Teachers()
+
+        self.page.clean()
+        self.page.update()
+
+        self.red_radius_practice = None
+        self.red_radius_lecture = None
+        self.red_radius_consultation = None
+
+        self.scroll = ListView(expand=1, width=1700)
+        self.red_radius_lecture = self.definition_percent(self.date_lecture, "lecture")
+        self.red_radius_consultation = self.definition_percent(self.date_consultation, "consultation")
+        self.red_radius_practice = self.definition_percent(self.date_practice_2 if
+                    self.teacher.get_str(self.db.get_info_select_from("subgroup", f"group{self.value} WHERE name='{self.name}'")) == "2" else
+                    self.date_practice_1 if
+                    self.teacher.get_str(self.db.get_info_select_from("subgroup", f"group{self.value} WHERE name='{self.name}'")) == "1" else
+                    [0, 0], "practice")
+        self.create_scroll_box()
+        self.page.add(
+            Row([
+                IconButton(icons.ARROW_BACK, on_click=lambda _: self.go_back()),
+            ], alignment=alignment.top_left),
+            self.scroll
+        )
+
+    def create_chart(self, dates, types):
+        kol_date = dates.count("                 ")
+        # соответствующие значения оси X для данных точек
+        data_points_x = [2 + 3 * i for i in range(len(dates) - kol_date)]
+
+        value_point = []
+
+        for i in range(len(data_points_x)):
+            value = self.teacher.get_str(self.db.get_info_select_from("value", f"statement_{types}{self.value} WHERE date='{dates[i]}' AND name='{self.name}'"))
+
+            if value == "2y":
+                value_point.append(2)
+            elif value == "1y":
+                value_point.append(1)
+            elif value == "":
+                value_point.append(0)
+            elif value == ".":
+                value_point.append(0)
+            else:
+                value_point.append(value)
+
+        data_values = [(data_points_x[i], value_point[i]) for i in range(len(data_points_x))]
+
+        # Создаем данные для LineChartData на основе списка значений
+        data_points = [
+            LineChartDataPoint(x, y) for x, y in data_values
+        ]
+
+        data_1 = [
+            LineChartData(
+                data_points=data_points,
+                color=colors.PINK,
+                stroke_width=8,
+            ),
+        ]
+
+        bottom_axis_labels = [
+            ChartAxisLabel(
+                value=data_points_x[i],
+                label=Container(
+                    Text(
+                        dates[i],
+                        size=15,
+                        weight=FontWeight.BOLD,
+                        color=colors.with_opacity(0.5, colors.BLACK),
+                    ),
+                    margin=margin.only(top=10),
+                ),
+            )
+            for i in range(len(data_points_x))
+        ]
+
+        # Находим максимальный X
+        max_x = max(x for x, y in data_values)
+
+        chart = LineChart(
+            data_series=data_1,
+            border=Border(
+                bottom=BorderSide(1, colors.with_opacity(0.5, colors.ON_SURFACE))
+            ),
+            bottom_axis=ChartAxis(
+                labels=bottom_axis_labels,
+                labels_size=100,
+            ),
+            tooltip_bgcolor=colors.with_opacity(0.8, colors.BLACK),
+            min_y=0,
+            max_y=2,
+            min_x=0,
+            max_x=max_x,
+        )
+
+        return chart
+
+    def definition_percent(self, dates, types):
+        kol_space = dates.count("                 ")
+        full_dates = len(dates)-kol_space
+        was_not_couple = 0
+        for i in range(full_dates):
+            value = self.teacher.get_str(self.db.get_info_select_from("value", f"statement_{types}{self.value} WHERE name='{self.name}' AND date='{dates[i]}'"))
+            if value == "2" or value == "2y" or value == "1" or value == "1y":
+                was_not_couple += 1
+        try:
+            return 100 * was_not_couple // full_dates
+        except:
+            return 0
+
+    def create_scroll_box(self):
+        scroll = Column([
+            Container(
+                Column([
+                    Text(self.name, color="black", size=75),
+                    Text(f"          {self.value}", color="black", size=50)
+                ]), alignment=alignment.center, bgcolor="#e8e8e8", border_radius=15
+            ),
+            Container(
+                Row([
+                    Container(
+                        Column([
+                            self.create_chart_circle(self.red_radius_practice, 100-self.red_radius_practice),
+                            Text("Практика", color="black", size=25)
+                        ], alignment=alignment.center),
+                        bgcolor="#c5c5c5",
+                        width=250,
+                        height=250,
+                        alignment=alignment.center,
+                        border_radius=5
+                    ),
+                    Container(
+                        Column([
+                            self.create_chart_circle(self.red_radius_lecture, 100-self.red_radius_lecture),
+                            Text("Лекция", color="black", size=25)
+                        ], alignment=alignment.center),
+                        bgcolor="#c5c5c5",
+                        width=250,
+                        height=250,
+                        alignment=alignment.center,
+                        border_radius=5
+                    ),
+                    Container(
+                        Column([
+                            self.create_chart_circle(self.red_radius_consultation, 100-self.red_radius_consultation),
+                            Text("Консультация", color="black", size=25)
+                        ], alignment=alignment.center),
+                        bgcolor="#c5c5c5",
+                        width=250,
+                        height=250,
+                        alignment=alignment.center,
+                        border_radius=5
+                    ),
+                ], alignment=alignment.center),
+                alignment=alignment.center, bgcolor="#e8e8e8",
+                border_radius=15,
+                padding=padding.only(470, 0, 0, 0),
+            ),
+            Container(
+                Column([
+                    self.create_chart(self.date_lecture, "lecture"),
+                    Text("Лекция", color="black", size=25),
+                ]), alignment=alignment.center, bgcolor="#e8e8e8", border_radius=15, height=400, padding=50
+            ),
+            Container(
+                Column([
+                    self.create_chart(self.date_practice_2, "practice") if
+                    self.teacher.get_str(self.db.get_info_select_from("subgroup", f"group{self.value} WHERE name='{self.name}'")) == "2" else
+                    self.create_chart(self.date_practice_1, "practice") if
+                    self.teacher.get_str(self.db.get_info_select_from("subgroup", f"group{self.value} WHERE name='{self.name}'")) == "1" else
+                    Text("НЕТУ ПОДГРУППЫ", color="red", size=100),
+                    Text("Практика(посещаемость)", color="black", size=25),
+                ]), alignment=alignment.center, bgcolor="#e8e8e8", border_radius=15, height=400, padding=50
+            ),
+            Container(
+                Column([
+                    self.create_chart(self.date_consultation, "consultation"),
+                    Text("Консультация", color="black", size=25),
+                ]), alignment=alignment.center, bgcolor="#e8e8e8", border_radius=15, height=400, padding=50
+            ),
+        ])
+        self.scroll.controls.append(scroll)
+
+    def create_chart_circle(self, value1, value2):
+        normal_radius = 50
+        hover_radius = 60
+        normal_title_style = TextStyle(
+            size=16, color=colors.WHITE, weight=FontWeight.BOLD
+        )
+        hover_title_style = TextStyle(
+            size=22,
+            color=colors.WHITE,
+            weight=FontWeight.BOLD,
+            shadow=BoxShadow(blur_radius=2, color=colors.BLACK54),
+        )
+
+        def on_chart_event(e: PieChartEvent):
+            for idx, section in enumerate(e.control.sections):
+                if idx == e.section_index:
+                    section.radius = hover_radius
+                    section.title_style = hover_title_style
+                else:
+                    section.radius = normal_radius
+                    section.title_style = normal_title_style
+            e.control.update()
+
+        def create_pie_chart(value1, value2):
+            chart = PieChart(
+                sections=[
+                    PieChartSection(
+                        value1,
+                        title=f"{value1}%",
+                        title_style=normal_title_style,
+                        color=colors.RED,
+                        radius=normal_radius,
+                    ),
+                    PieChartSection(
+                        value2,
+                        title=f"{value2}%",
+                        title_style=normal_title_style,
+                        color=colors.GREEN,
+                        radius=normal_radius,
+                    ),
+                ],
+                sections_space=0,
+                center_space_radius=40,
+                on_chart_event=on_chart_event,
+                expand=True,
+            )
+            return chart
+
+        return create_pie_chart(value1, value2)
+
+    def go_back(self):
+        if self.id == 0:
+            AdminGroup(self.page, self.db, self.value)
+        else:
+            Visible(self.page, self.id, self.db, self.value, 1)
+
+
 def main(page: Page):
     page.theme_mode = 'light'
-    Main(page)
+    SplashScreen(page)
 
 
 app(target=main)

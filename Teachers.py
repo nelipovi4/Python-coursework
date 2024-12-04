@@ -1,7 +1,7 @@
 class Teachers:
 
 	def __init__(self):
-		self.list_name_global = []
+		pass
 
 	def get_list_group(self, lists):
 		list_num = []
