@@ -1,9 +1,10 @@
 import sqlite3
+import os
 
 
 class Databases:
 	def __init__(self):
-		self.db = sqlite3.connect("bntu_db.db", check_same_thread=False)
+		self.db = sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), "file/bntu_db.db"), check_same_thread=False)
 		self.cursor_db = self.db.cursor()
 
 # select

@@ -107,7 +107,7 @@ class SplashScreen:
             Row(
                 [
                     Container(
-                        Image(src="img/logo.jpg"),
+                        Image(src=os.path.join(os.path.dirname(os.path.abspath(__file__)), "img/logo.jpg")),
                         alignment=alignment.center_left,
                         padding=padding.only(left=70),
                         expand=True
@@ -327,9 +327,9 @@ class Main:
         img = Image()
         if value == 1:
             text.value = "Нелипович Евгений Григорьевич\n10701123\nzhenya.nelipovich@gmail.com"
-            img.src = "img/i.jpg"
+            img.src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img/i.jpg")
         else:
-            img.src = "img/logo.jpg"
+            img.src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img/logo.jpg")
             text.value = ("Программа 'Контроль успеваемости'\n"
                           "предназначена для мониторинга и анализа академических результатов учащихся.\n "
                           "Она помогает учителям отслеживать прогресс в обучении, выявлять слабые и сильные стороны,\n "
@@ -361,7 +361,7 @@ class Main:
                                 PopupMenuItem(text="Тех. поддержка", on_click=lambda _: self.page.show_banner(
                                     AlertDialog(
                                         title=Text("Тех. поддержка"),
-                                        content=Text(f"Ко всем вопросам пишите на почту\n{self.email[0]}", size=25),
+                                        content=Text(f"По всем вопросам пишите на почту\n{self.email[0]}", size=25),
                                         actions=[
                                             TextButton("Отмена", on_click=lambda e: self.page.close_banner()),
                                         ]
@@ -396,7 +396,7 @@ class Main:
                                 PopupMenuItem(text="Тех. поддержка", on_click=lambda _: self.page.show_banner(
                                     AlertDialog(
                                         title=Text("Тех. поддержка"),
-                                        content=Text(f"Ко всем вопросам пишите на почту\n{self.email[0]}", size=25),
+                                        content=Text(f"По всем вопросам пишите на почту\nzhenya.nelipovich@gmail.com", size=25),
                                         actions=[
                                             TextButton("Отмена", on_click=lambda e: self.page.close_banner()),
                                         ]
@@ -756,9 +756,9 @@ class Settings(Numbers):
 
         # Добавляем радио-группы в колонки
         scroll_cont.controls.append(Column(controls=[
-            Row([Image(src="img/number_3.png"), self.radio_groups[0]]),
-            Row([Image(src="img/number_2.png"), self.radio_groups[1]]),
-            Row([Image(src="img/number_1.png"), self.radio_groups[2]]),
+            Row([Image(src=os.path.join(os.path.dirname(os.path.abspath(__file__)), "img/number_3.png")), self.radio_groups[0]]),
+            Row([Image(src=os.path.join(os.path.dirname(os.path.abspath(__file__)), "img/number_2.png")), self.radio_groups[1]]),
+            Row([Image(src=os.path.join(os.path.dirname(os.path.abspath(__file__)), "img/number_1.png")), self.radio_groups[2]]),
         ]))
 
         dialog = AlertDialog(
@@ -798,8 +798,8 @@ class Settings(Numbers):
 
         # Добавляем радио-группы в колонки
         scroll_cont.controls.append(Column(controls=[
-            Row([Image(src="img/table_1.png"), self.radio_groups_table[0]]),
-            Row([Image(src="img/table_2.png"), self.radio_groups_table[1]]),
+            Row([Image(src=os.path.join(os.path.dirname(os.path.abspath(__file__)), "img/table_1.png")), self.radio_groups_table[0]]),
+            Row([Image(src=os.path.join(os.path.dirname(os.path.abspath(__file__)), "img/table_2.png")), self.radio_groups_table[1]]),
         ]))
 
         dialog = AlertDialog(
@@ -2245,13 +2245,13 @@ class Visible(Statistics):
             Container(
                 Column([
                     Row([
-                        Image(src="img/guide_1.png"),
+                        Image(src=os.path.join(os.path.dirname(os.path.abspath(__file__)), "img/guide_1.png")),
                         Text("Можно долгим нажатием на имя\nвыделить поле", size=20)
                     ]),
                     Text("Если какие-то данные в таблице не обновились, то нажмите кнопку 'Обновить'", size=20),
                     Text("В настройках можно изменить способ выставление оценок", size=20),
                     Row([
-                        Image(src="img/guide_2.png"),
+                        Image(src=os.path.join(os.path.dirname(os.path.abspath(__file__)), "img/guide_2.png")),
                         Text("Можно сортировать нажав на колонку (с датами не работает)", size=20)
                     ]),
                 ])
@@ -2601,7 +2601,7 @@ class AdminGroup(Admin):
                                 icon=icons.MORE_VERT,
                                 items=[
                                     PopupMenuItem(text="Аккаунт", on_click=lambda _, name=self.list_name[i]:
-                                    print(name)),
+                                    AccountStudent(self.page, self.db, self.group, 0, name, 1)),
                                     PopupMenuItem(text="Изменить",
                                                   on_click=lambda _, name=self.list_name[i]: lambda _: EditStudent(self.page, self.db, name, self.group, 0)),
                                     PopupMenuItem(text="Удалить",
