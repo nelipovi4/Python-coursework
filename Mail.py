@@ -10,7 +10,7 @@ class Mail:
 	def send_email(self, subject, body, to_email, attachment_file_paths):
 		""" Отправка email с вложениями. """
 		from_email = "zhenya.nelipovich@gmail.com"
-		password = "zpow cova rbkh rkel"
+		password = ""
 
 		# Убедимся, что адрес получателя правильный
 		to_email = str(to_email).strip().strip('<>').replace("'", "").replace('"', '')
